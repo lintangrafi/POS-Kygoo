@@ -11,9 +11,10 @@ import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ShiftManagementProps {
     initialShift: any; // Using any for simplicity in rapid dev, ideally types from schema
+    lastShift?: any; // last closed shift for pre-filling initial cash
 }
 
-export function ShiftManagement({ initialShift }: ShiftManagementProps) {
+export function ShiftManagement({ initialShift, lastShift }: ShiftManagementProps) {
     const [isOpen, setIsOpen] = useState(!!initialShift);
 
     // Open Shift State
@@ -30,7 +31,7 @@ export function ShiftManagement({ initialShift }: ShiftManagementProps) {
     const [adjustments, setAdjustments] = useState<any[]>([]);
     const [products, setProducts] = useState<any[]>([]);
     const [page, setPage] = useState<number>(1);
-    const [limit] = useState<number>(5);
+    const [limit] = useState<number>(10);
     const [total, setTotal] = useState<number>(0);
     const [productFilter, setProductFilter] = useState<string>('');
     const [fromFilter, setFromFilter] = useState<string>('');
@@ -96,6 +97,7 @@ export function ShiftManagement({ initialShift }: ShiftManagementProps) {
                             <p className="font-mono font-medium">
                                 {initialShift?.startTime ? new Date(initialShift.startTime).toLocaleString() : new Date().toLocaleString()}
                             </p>
+                            <p className="text-xs text-muted-foreground mt-1">Opened by <span className="font-medium">{initialShift?.user?.name || 'Unknown'}</span></p>
                         </div>
                     </CardContent>
                 </Card>
@@ -149,17 +151,15 @@ export function ShiftManagement({ initialShift }: ShiftManagementProps) {
                         {adjustments.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center">No adjustments found.</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-64 overflow-y-auto">
                                 {adjustments.map((a) => (
-                                    <div key={a.id} className="flex items-center justify-between">
-                                        <div>
-                                            <div className="text-sm font-medium">{a.product?.name || 'Unknown'}</div>
+                                    <div key={a.id} className="flex items-center justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="text-sm font-medium truncate">{a.product?.name || 'Unknown'}</div>
                                             <div className="text-xs text-muted-foreground">by {a.user?.name || 'Unknown'}</div>
                                         </div>
-                                        <div className={`font-mono ${a.change < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                            {a.change}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground ml-4">{new Date(a.createdAt).toLocaleString()}</div>
+                                        <div className={`font-mono ${a.change < 0 ? 'text-red-600' : 'text-green-600'}`}>{a.change}</div>
+                                        <div className="text-xs text-muted-foreground ml-4 whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</div>
                                     </div>
                                 ))}
 
@@ -199,6 +199,7 @@ export function ShiftManagement({ initialShift }: ShiftManagementProps) {
                                 placeholder="0"
                                 required
                                 min="0"
+                                defaultValue={lastShift?.totalCashReceived ?? ''}
                                 className="bg-white text-black dark:bg-black dark:text-white"
                             />
                             <p className="text-xs text-muted-foreground">Enter the amount of cash currently in the drawer.</p>

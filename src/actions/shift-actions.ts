@@ -71,8 +71,7 @@ export async function closeShiftAction(prevState: any, formData: FormData) {
             .set({
                 endTime: new Date(),
                 status: 'CLOSED',
-                // In a real app we might store reportedCash separately from calculated totalCashReceived
-                // For now, let's just close it. Ideally we should calculate the expected total first.
+                totalCashReceived: reportedCash.toString(), // store the reported cash in the shift
             })
             .where(eq(shifts.id, activeShift.id));
 

@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { orders, orderItems, payments, products } from '@/db/schema';
+import { orders, orderItems, payments, products, shifts } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 
@@ -48,6 +48,20 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
         dailyRevenue[d] = (dailyRevenue[d] || 0) + Number(o.totalAmount);
     }
 
+    // Include shift totals (reported cash) that ended in the range
+    const shiftsInRange = await db.query.shifts.findMany({
+        where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
+            const conds: any[] = [];
+            if (from) conds.push(gteOp(s.endTime, from));
+            if (to) conds.push(ltOp(s.endTime, to));
+            if (conds.length === 0) return undefined;
+            conds.push(eqOp(s.status, 'CLOSED'));
+            return andOp(...conds);
+        },
+    });
+
+    const totalCashInDrawer = shiftsInRange.reduce((acc, s) => acc + Number(s.totalCashReceived || 0), 0);
+
     return {
         turnover,
         totalOrders,
@@ -56,6 +70,8 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
         paymentsBreakdown,
         dailyRevenue,
         orders: ordersInRange,
+        shifts: shiftsInRange,
+        totalCashInDrawer,
     };
 }
 

@@ -21,8 +21,8 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     // Always fetch financial report for the selected range so metrics reflect the period
     const r = await getFinancialReport({ from, to: toInclusive });
 
-    // fetch audit logs filtered by selected range
-    const logs = await getAuditLogs({ from, to: toInclusive });
+    // fetch audit logs filtered by selected range (limit to 10 for reports)
+    const logs = await getAuditLogs({ from, to: toInclusive, limit: 10 });
 
     // aggregated series used for charts when not custom
     let aggregated: { period: string; amount: number }[] | null = null;
@@ -90,7 +90,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </div>
 
             {/* Summary metrics for the selected range (always shown) */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Turnover</CardTitle>
@@ -146,6 +146,17 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                                 ))}
                             </TableBody>
                         </Table>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Cash in Drawer</CardTitle>
+                        <CardDescription>Reported cash from closed shifts in period</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-semibold">{formatRupiah(r.totalCashInDrawer || 0)}</div>
+                        <div className="text-sm text-muted-foreground">From {r.shifts?.length || 0} closed shift(s)</div>
                     </CardContent>
                 </Card>
             </div>

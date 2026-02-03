@@ -32,7 +32,17 @@ export async function getLastShift() {
 
 export async function openShiftAction(prevState: any, formData: FormData) {
     const session = await verifySession();
-    const initialCash = parseFloat(formData.get('initialCash') as string) || 0;
+    let initialCash = parseFloat(formData.get('initialCash') as string) || 0;
+
+    // Default initial cash to last closed shift's reported cash for continuity if available
+    try {
+        const lastShift = await getLastShift();
+        if ((!initialCash || initialCash === 0) && lastShift?.totalCashReceived) {
+            initialCash = Number(lastShift.totalCashReceived);
+        }
+    } catch (err) {
+        // ignore
+    }
 
     try {
         // Check if already open

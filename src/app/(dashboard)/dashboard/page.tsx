@@ -1,12 +1,24 @@
 import { getDashboardStats } from '@/actions/admin-actions';
 import { getOpenShift } from '@/actions/shift-actions';
+import { getExpenses } from '@/actions/expense-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { formatRupiah } from '@/lib/utils';
-import { BadgeDollarSign, ShoppingBag, AlertTriangle, TrendingUp } from 'lucide-react';
+import { BadgeDollarSign, ShoppingBag, AlertTriangle, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
 
 export default async function DashboardPage() {
     const stats = await getDashboardStats();
     const openShift = await getOpenShift();
+
+    // Get today's expenses
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const todayExpenses = await getExpenses({ from: today, to: tomorrow });
+    const totalExpenses = todayExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+
+    // Calculate net profit (revenue - expenses)
+    const netProfit = stats.todaySales - totalExpenses;
+    const profitPercentage = stats.todaySales > 0 ? ((netProfit / stats.todaySales) * 100).toFixed(1) : '0';
 
     return (
         <div className="w-full space-y-8">
@@ -16,7 +28,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Stats Cards */}
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Revenue (Today)</CardTitle>
@@ -25,6 +37,17 @@ export default async function DashboardPage() {
                     <CardContent>
                         <div className="text-2xl font-bold">{formatRupiah(stats.todaySales)}</div>
                         <p className="text-xs text-muted-foreground">+0% from yesterday</p>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Total Expenses (Today)</CardTitle>
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-600">{formatRupiah(totalExpenses)}</div>
+                        <p className="text-xs text-muted-foreground">{todayExpenses.length} expense(s) recorded</p>
                     </CardContent>
                 </Card>
 
@@ -68,6 +91,36 @@ export default async function DashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Net Profit Summary Card */}
+            <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-transparent">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                        <CardTitle className="text-lg font-semibold">Net Profit (Today)</CardTitle>
+                        <CardDescription>Revenue - Expenses</CardDescription>
+                    </div>
+                    <Wallet className={`h-8 w-8 ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`} />
+                </CardHeader>
+                <CardContent>
+                    <div className={`text-3xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatRupiah(netProfit)}
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-2">
+                        <div className="flex justify-between">
+                            <span>Pemasukan:</span>
+                            <span className="font-semibold">{formatRupiah(stats.todaySales)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>Pengeluaran:</span>
+                            <span className="font-semibold">{formatRupiah(totalExpenses)}</span>
+                        </div>
+                        <div className="border-t mt-2 pt-2 flex justify-between font-semibold">
+                            <span>Profit Margin:</span>
+                            <span>{profitPercentage}%</span>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Recent Sales & Low Stock Details */}
             <div className="grid gap-4 grid-cols-1 xl:grid-cols-7">

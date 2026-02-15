@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { orders, orderItems, payments, products, shifts } from '@/db/schema';
+import { orders, orderItems, payments, products, shifts, expenses } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 
@@ -62,16 +62,33 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
 
     const totalCashInDrawer = shiftsInRange.reduce((acc, s) => acc + Number(s.totalCashReceived || 0), 0);
 
+    // Get expenses in the range
+    const expensesInRange = await db.query.expenses.findMany({
+        where: and(
+            gte(expenses.date, from),
+            lt(expenses.date, to)
+        ),
+        with: {
+            user: true,
+        },
+        orderBy: [desc(expenses.date)],
+    });
+
+    const totalExpenses = expensesInRange.reduce((acc, e) => acc + Number(e.amount), 0);
+
     return {
         turnover,
         totalOrders,
         cogs,
         grossProfit: turnover - cogs,
+        netProfit: turnover - cogs - totalExpenses, // Net profit after expenses
         paymentsBreakdown,
         dailyRevenue,
         orders: ordersInRange,
         shifts: shiftsInRange,
         totalCashInDrawer,
+        expenses: expensesInRange,
+        totalExpenses,
     };
 }
 
@@ -125,9 +142,12 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
 
     const ordersInRange = await db.query.orders.findMany({
         where: and(gte(orders.createdAt, from), lt(orders.createdAt, to), eq(orders.status, 'COMPLETED')),
+        with: {
+            payments: true,
+        },
     });
 
-    const map: Record<string, number> = {};
+    const map: Record<string, { amount: number; paymentsBreakdown: Record<string, number>; ordersCount: number }> = {};
 
     const getWeekStart = (d: Date) => {
         // ISO-like week start on Monday
@@ -140,21 +160,79 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
     };
 
     const keyFn = (d: Date) => {
-        const iso = d.toISOString();
-        if (period === 'daily') return iso.slice(0, 10);
-        if (period === 'monthly') return iso.slice(0, 7);
-        if (period === 'yearly') return iso.slice(0, 4);
+        const dt = new Date(d);
+        // Use local date format to fix timezone issue
+        const year = dt.getFullYear();
+        const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0');
+        
+        if (period === 'daily') return `${year}-${month}-${day}`;
+        if (period === 'monthly') return `${year}-${month}`;
+        if (period === 'yearly') return `${year}`;
         // weekly
-        const ws = getWeekStart(d);
-        return ws.toISOString().slice(0, 10);
+        const ws = getWeekStart(dt);
+        const wYear = ws.getFullYear();
+        const wMonth = String(ws.getMonth() + 1).padStart(2, '0');
+        const wDay = String(ws.getDate()).padStart(2, '0');
+        return `${wYear}-${wMonth}-${wDay}`;
     };
 
     for (const o of ordersInRange) {
         const k = keyFn(new Date(o.createdAt));
-        map[k] = (map[k] || 0) + Number(o.totalAmount);
+        if (!map[k]) {
+            map[k] = { amount: 0, paymentsBreakdown: {}, ordersCount: 0 };
+        }
+        map[k].amount += Number(o.totalAmount);
+        map[k].ordersCount += 1;
+        
+        // Aggregate payments
+        for (const p of o.payments || []) {
+            const method = p.method;
+            map[k].paymentsBreakdown[method] = (map[k].paymentsBreakdown[method] || 0) + Number(p.amount);
+        }
     }
 
-    const items = Object.entries(map).map(([periodLabel, amount]) => ({ period: periodLabel, amount }));
+    // Get shifts that ended in range
+    const shiftsInRange = await db.query.shifts.findMany({
+        where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
+            const conds: any[] = [];
+            if (from) conds.push(gteOp(s.endTime, from));
+            if (to) conds.push(ltOp(s.endTime, to));
+            if (conds.length === 0) return undefined;
+            conds.push(eqOp(s.status, 'CLOSED'));
+            return andOp(...conds);
+        },
+    });
+
+    // Map shifts to periods
+    const shiftMap: Record<string, number> = {};
+    for (const shift of shiftsInRange) {
+        if (shift.endTime) {
+            const k = keyFn(new Date(shift.endTime));
+            shiftMap[k] = (shiftMap[k] || 0) + Number(shift.totalCashReceived || 0);
+        }
+    }
+
+    // Get expenses in range
+    const expensesInRange = await db.query.expenses.findMany({
+        where: and(gte(expenses.date, from), lt(expenses.date, to)),
+    });
+
+    // Map expenses to periods
+    const expenseMap: Record<string, number> = {};
+    for (const expense of expensesInRange) {
+        const k = keyFn(new Date(expense.date));
+        expenseMap[k] = (expenseMap[k] || 0) + Number(expense.amount);
+    }
+
+    const items = Object.entries(map).map(([periodLabel, data]) => ({ 
+        period: periodLabel, 
+        amount: data.amount,
+        paymentsBreakdown: data.paymentsBreakdown,
+        ordersCount: data.ordersCount,
+        cashInDrawer: shiftMap[periodLabel] || 0,
+        expenses: expenseMap[periodLabel] || 0,
+    }));
     items.sort((a, b) => a.period.localeCompare(b.period));
 
     return items;

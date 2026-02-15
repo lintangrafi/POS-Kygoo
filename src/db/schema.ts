@@ -165,6 +165,26 @@ export const stockAdjustmentsRelations = relations(stockAdjustments, ({ one }) =
     }),
 }));
 
+// Expenses Table (daily unexpected expenses like buying ice, etc)
+export const expenseCategoryEnum = pgEnum('expense_category', ['SUPPLIES', 'UTILITIES', 'MAINTENANCE', 'OTHER']);
+export const expenses = pgTable('expenses', {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').references(() => users.id).notNull(), // Admin who recorded it
+    description: text('description').notNull(),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    category: expenseCategoryEnum('category').default('OTHER').notNull(),
+    date: timestamp('date').notNull(), // Date of the expense
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const expensesRelations = relations(expenses, ({ one }) => ({
+    user: one(users, {
+        fields: [expenses.userId],
+        references: [users.id],
+    }),
+}));
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
     user: one(users, {
         fields: [auditLogs.userId],

@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatRupiah } from '@/lib/utils';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export default function InvoiceListClient({ serverOrders }: any) {
     const [orders, setOrders] = useState(serverOrders || []);
     const [loadingId, setLoadingId] = useState<number | null>(null);
+    const [expandedId, setExpandedId] = useState<number | null>(null);
 
     async function voidOrder(id: number) {
         setLoadingId(id);
@@ -39,6 +41,7 @@ export default function InvoiceListClient({ serverOrders }: any) {
             <Table>
                 <TableHeader>
                     <TableRow>
+                        <TableHead className="w-8"></TableHead>
                         <TableHead>Invoice</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead>Cashier</TableHead>
@@ -49,22 +52,63 @@ export default function InvoiceListClient({ serverOrders }: any) {
                 </TableHeader>
                 <TableBody>
                     {orders.map((o: any) => (
-                        <TableRow key={o.id}>
-                            <TableCell className="font-medium">{o.invoiceNumber}</TableCell>
-                            <TableCell>{new Date(o.createdAt).toLocaleString()}</TableCell>
-                            <TableCell>{o.user?.name || 'Unknown'}</TableCell>
-                            <TableCell>{o.status}</TableCell>
-                            <TableCell>{formatRupiah(Number(o.totalAmount))}</TableCell>
-                            <TableCell>
-                                <div className="flex gap-2">
-                                    <a className="btn btn-outline" href={`/invoices/${o.id}`} target="_blank" rel="noreferrer">View</a>
-                                    {o.status !== 'VOID' && (
-                                        <Button variant="outline" onClick={() => voidOrder(o.id)} disabled={loadingId === o.id}>Void</Button>
-                                    )}
-                                    <Button className="border-red-500 text-red-600" onClick={() => deleteOrder(o.id)} disabled={loadingId === o.id}>Delete</Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
+                        <React.Fragment key={o.id}>
+                            <TableRow>
+                                <TableCell>
+                                    <button
+                                        onClick={() => setExpandedId(expandedId === o.id ? null : o.id)}
+                                        className="p-1 hover:bg-slate-200 rounded"
+                                    >
+                                        {expandedId === o.id ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                    </button>
+                                </TableCell>
+                                <TableCell className="font-medium">{o.invoiceNumber}</TableCell>
+                                <TableCell>{new Date(o.createdAt).toLocaleString()}</TableCell>
+                                <TableCell>{o.user?.name || 'Unknown'}</TableCell>
+                                <TableCell>{o.status}</TableCell>
+                                <TableCell className="font-semibold">{formatRupiah(Number(o.totalAmount))}</TableCell>
+                                <TableCell>
+                                    <div className="flex gap-2">
+                                        <a className="btn btn-outline" href={`/invoices/${o.id}`} target="_blank" rel="noreferrer">View</a>
+                                        {o.status !== 'VOID' && (
+                                            <Button variant="outline" onClick={() => voidOrder(o.id)} disabled={loadingId === o.id}>Void</Button>
+                                        )}
+                                        <Button className="border-red-500 text-red-600" onClick={() => deleteOrder(o.id)} disabled={loadingId === o.id}>Delete</Button>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                            {expandedId === o.id && o.items && o.items.length > 0 && (
+                                <TableRow className="bg-slate-50">
+                                    <TableCell colSpan={7} className="p-4">
+                                        <div className="ml-6">
+                                            <h4 className="font-semibold text-sm mb-3">Items Sold:</h4>
+                                            <Table className="text-sm">
+                                                <TableHeader>
+                                                    <TableRow className="border-b">
+                                                        <TableHead className="text-xs">Product</TableHead>
+                                                        <TableHead className="text-xs text-right">Qty</TableHead>
+                                                        <TableHead className="text-xs text-right">Price</TableHead>
+                                                        <TableHead className="text-xs text-right">Subtotal</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {o.items.map((item: any, idx: number) => (
+                                                        <TableRow key={idx} className="border-b-0">
+                                                            <TableCell className="py-2">{item.product?.name || 'Unknown Product'}</TableCell>
+                                                            <TableCell className="py-2 text-right">{item.quantity}</TableCell>
+                                                            <TableCell className="py-2 text-right">{formatRupiah(Number(item.priceAtSale))}</TableCell>
+                                                            <TableCell className="py-2 text-right font-medium">
+                                                                {formatRupiah(Number(item.priceAtSale) * item.quantity)}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </React.Fragment>
                     ))}
                 </TableBody>
             </Table>

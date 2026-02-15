@@ -23,8 +23,8 @@ export default function BarChart({
     const prepared = useMemo(() => {
         const amounts = data.map(d => d.amount);
         const max = amounts.length ? Math.max(...amounts) : 0;
-        const w = Math.max(600, data.length * 60);
-        const h = 320; // a bit taller for readability
+        const w = Math.max(500, data.length * 50);
+        const h = 240;
         const margin = { top: 28, right: 20, bottom: 80, left: 80 };
         const innerW = w - margin.left - margin.right;
         const innerH = h - margin.top - margin.bottom;

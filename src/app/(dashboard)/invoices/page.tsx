@@ -6,15 +6,19 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
     // searchParams may be a Promise in Next.js app router — await it first
     const sp = (await searchParams) || {};
 
-    // Determine date range from search params; default to last 30 days
-    const period = (sp?.period as 'daily' | 'weekly' | 'monthly' | 'custom') || 'custom';
+    // Determine date range from search params; default to today
+    const period = (sp?.period as 'today' | 'daily' | 'weekly' | 'monthly' | 'custom') || 'today';
     const to = sp?.to ? new Date(sp.to) : new Date();
-    const from = sp?.from ? new Date(sp.from) : new Date(Date.now() - 1000 * 60 * 60 * 24 * 30);
+    const from = sp?.from ? new Date(sp.from) : new Date();
 
     // for period shortcuts, override from/to
     let fromDate = from;
     let toDate = new Date(to.getTime() + 1000 * 60 * 60 * 24); // inclusive
-    if (period === 'daily') {
+    if (period === 'today') {
+        fromDate = new Date();
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date(fromDate.getTime() + 1000 * 60 * 60 * 24);
+    } else if (period === 'daily') {
         fromDate = new Date();
         fromDate.setHours(0, 0, 0, 0);
         toDate = new Date(fromDate.getTime() + 1000 * 60 * 60 * 24);
@@ -56,6 +60,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
             </form>
 
             <div className="mt-4 flex gap-2">
+                <a title="Today" href={`?period=today`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'} transition`}>Today</a>
                 <a title="Daily" href={`?period=daily`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'} transition`}>Daily</a>
                 <a title="Weekly" href={`?period=weekly`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'} transition`}>Weekly</a>
                 <a title="Monthly" href={`?period=monthly`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'} transition`}>Monthly</a>

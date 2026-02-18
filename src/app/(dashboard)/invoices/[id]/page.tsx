@@ -53,7 +53,14 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                     </Table>
 
                     <div className="mt-4 text-right">
-                        <div className="text-sm text-muted-foreground">Total</div>
+                        <div className="text-sm text-muted-foreground">Subtotal</div>
+                        <div className="text-lg font-semibold">{formatRupiah(Number(order.subtotalAmount ?? order.totalAmount))}</div>
+                        <div className="text-sm text-muted-foreground mt-2">Discount</div>
+                        <div className="text-lg font-semibold">- {formatRupiah(Number(order.discountAmount ?? 0))}</div>
+                        {Number(order.discountPercent || 0) > 0 && (
+                            <div className="text-xs text-muted-foreground">({Number(order.discountPercent).toFixed(2)}%)</div>
+                        )}
+                        <div className="text-sm text-muted-foreground mt-2">Total</div>
                         <div className="text-2xl font-bold">{formatRupiah(Number(order.totalAmount))}</div>
                     </div>
                 </CardContent>

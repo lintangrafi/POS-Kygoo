@@ -59,6 +59,9 @@ export const orders = pgTable('orders', {
     id: serial('id').primaryKey(),
     invoiceNumber: text('invoice_number').notNull().unique(),
     userId: integer('user_id').references(() => users.id).notNull(), // Cashier who handled it
+    subtotalAmount: decimal('subtotal_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    discountPercent: decimal('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
     totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
     status: orderStatusEnum('status').default('COMPLETED').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),

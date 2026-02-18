@@ -319,3 +319,55 @@ Cukup jalankan `npm run dev` dan features sudah berfungsi!
 5. Verifikasi data tersimpan di database
 
 Selesai! Fitur expenses sudah aktif 🎉
+
+---
+
+# Database Migration Guide - Discount Fields (Orders)
+
+## Overview
+Menambahkan kolom diskon di tabel `orders` untuk menyimpan subtotal, diskon nominal, dan diskon persen.
+
+---
+
+## 📋 Daftar File Migration
+
+1. **add_order_discount_fields.sql** - Main migration script
+2. **rollback_order_discount_fields.sql** - Rollback script jika diperlukan
+
+---
+
+## 🚀 Cara Implementasi
+
+### Option 1: Menggunakan Drizzle ORM (Recommended)
+
+```bash
+cd d:\Project\POS-Kygo-V2
+npm run db:push
+```
+
+### Option 2: Menjalankan SQL Script Manual
+
+```bash
+psql -h localhost -U postgres -d kygodb -f "D:/Project/POS-Kygo-V2/migrations/add_order_discount_fields.sql"
+```
+
+---
+
+## ✅ Verifikasi Instalasi
+
+```sql
+\d orders
+```
+
+Expected columns:
+- subtotal_amount
+- discount_amount
+- discount_percent
+
+---
+
+## ⚠️ Rollback (Jika Diperlukan)
+
+```bash
+psql -h localhost -U postgres -d kygodb -f "D:/Project/POS-Kygo-V2/migrations/rollback_order_discount_fields.sql"
+```

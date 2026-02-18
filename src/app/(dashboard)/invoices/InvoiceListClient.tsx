@@ -46,6 +46,7 @@ export default function InvoiceListClient({ serverOrders }: any) {
                         <TableHead>Time</TableHead>
                         <TableHead>Cashier</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Discount</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Actions</TableHead>
                     </TableRow>
@@ -66,6 +67,14 @@ export default function InvoiceListClient({ serverOrders }: any) {
                                 <TableCell>{new Date(o.createdAt).toLocaleString()}</TableCell>
                                 <TableCell>{o.user?.name || 'Unknown'}</TableCell>
                                 <TableCell>{o.status}</TableCell>
+                                <TableCell>
+                                    <div className="text-sm font-medium">
+                                        {formatRupiah(Number(o.discountAmount || 0))}
+                                    </div>
+                                    {Number(o.discountPercent || 0) > 0 && (
+                                        <div className="text-xs text-muted-foreground">({Number(o.discountPercent).toFixed(2)}%)</div>
+                                    )}
+                                </TableCell>
                                 <TableCell className="font-semibold">{formatRupiah(Number(o.totalAmount))}</TableCell>
                                 <TableCell>
                                     <div className="flex gap-2">
@@ -79,7 +88,7 @@ export default function InvoiceListClient({ serverOrders }: any) {
                             </TableRow>
                             {expandedId === o.id && o.items && o.items.length > 0 && (
                                 <TableRow className="bg-slate-50">
-                                    <TableCell colSpan={7} className="p-4">
+                                    <TableCell colSpan={8} className="p-4">
                                         <div className="ml-6">
                                             <h4 className="font-semibold text-sm mb-3">Items Sold:</h4>
                                             <Table className="text-sm">
@@ -104,6 +113,16 @@ export default function InvoiceListClient({ serverOrders }: any) {
                                                     ))}
                                                 </TableBody>
                                             </Table>
+                                            <div className="mt-4 flex justify-end">
+                                                <div className="text-right text-sm">
+                                                    <div className="text-muted-foreground">Subtotal</div>
+                                                    <div className="font-medium">{formatRupiah(Number(o.subtotalAmount ?? o.totalAmount))}</div>
+                                                    <div className="text-muted-foreground mt-2">Discount</div>
+                                                    <div className="font-medium">- {formatRupiah(Number(o.discountAmount || 0))}</div>
+                                                    <div className="text-muted-foreground mt-2">Total</div>
+                                                    <div className="font-semibold">{formatRupiah(Number(o.totalAmount))}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </TableCell>
                                 </TableRow>

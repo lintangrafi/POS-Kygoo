@@ -30,6 +30,9 @@ export async function getPosData() {
 export async function processTransaction(data: {
     items: { productId: number; quantity: number; price: number }[];
     paymentMethods: { method: 'CASH' | 'QRIS' | 'TRANSFER'; amount: number }[];
+    subtotalAmount: number;
+    discountAmount: number;
+    discountPercent: number;
     totalAmount: number;
 }) {
     const session = await verifySession();
@@ -45,6 +48,9 @@ export async function processTransaction(data: {
         const [newOrder] = await db.insert(orders).values({
             invoiceNumber,
             userId: session.userId,
+            subtotalAmount: data.subtotalAmount.toString(),
+            discountAmount: data.discountAmount.toString(),
+            discountPercent: data.discountPercent.toString(),
             totalAmount: data.totalAmount.toString(),
             status: 'COMPLETED',
         }).returning();
@@ -96,7 +102,13 @@ export async function processTransaction(data: {
             action: 'CREATE',
             entity: 'ORDER',
             entityId: newOrder.id,
-            newValue: JSON.stringify({ invoice: invoiceNumber, total: data.totalAmount }),
+            newValue: JSON.stringify({
+                invoice: invoiceNumber,
+                subtotal: data.subtotalAmount,
+                discountAmount: data.discountAmount,
+                discountPercent: data.discountPercent,
+                total: data.totalAmount,
+            }),
         });
 
         return { success: true, orderId: newOrder.id, invoiceAndDate: `${invoiceNumber} - ${new Date().toLocaleString()}` };

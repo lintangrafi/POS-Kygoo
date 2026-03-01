@@ -170,12 +170,14 @@ export const stockAdjustmentsRelations = relations(stockAdjustments, ({ one }) =
 
 // Expenses Table (daily unexpected expenses like buying ice, etc)
 export const expenseCategoryEnum = pgEnum('expense_category', ['SUPPLIES', 'UTILITIES', 'MAINTENANCE', 'OTHER']);
+export const transactionPaymentMethodEnum = pgEnum('transaction_payment_method', ['CASH', 'QRIS']);
 export const expenses = pgTable('expenses', {
     id: serial('id').primaryKey(),
     userId: integer('user_id').references(() => users.id).notNull(), // Admin who recorded it
     description: text('description').notNull(),
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
     category: expenseCategoryEnum('category').default('OTHER').notNull(),
+    paymentMethod: transactionPaymentMethodEnum('payment_method').default('CASH').notNull(), // CASH or QRIS
     date: timestamp('date').notNull(), // Date of the expense
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -184,6 +186,27 @@ export const expenses = pgTable('expenses', {
 export const expensesRelations = relations(expenses, ({ one }) => ({
     user: one(users, {
         fields: [expenses.userId],
+        references: [users.id],
+    }),
+}));
+
+// Income Table (daily income from various sources like additional services, rebates, etc)
+export const incomeCategoryEnum = pgEnum('income_category', ['SERVICE', 'REFUND', 'OTHER']);
+export const incomes = pgTable('incomes', {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').references(() => users.id).notNull(), // Admin who recorded it
+    description: text('description').notNull(),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    category: incomeCategoryEnum('category').default('OTHER').notNull(),
+    paymentMethod: transactionPaymentMethodEnum('payment_method').default('CASH').notNull(), // CASH or QRIS
+    date: timestamp('date').notNull(), // Date of the income
+    notes: text('notes'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const incomesRelations = relations(incomes, ({ one }) => ({
+    user: one(users, {
+        fields: [incomes.userId],
         references: [users.id],
     }),
 }));

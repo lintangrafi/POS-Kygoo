@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { addExpense, deleteExpense } from '@/actions/expense-actions';
+import { addIncome, deleteIncome } from '@/actions/income-actions';
 import { formatRupiah } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type Expense = {
+type Income = {
     id: number;
     description: string;
     amount: string;
@@ -19,7 +19,7 @@ type Expense = {
     user?: { name: string };
 };
 
-export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
+export function IncomeManagement({ incomes }: { incomes: Income[] }) {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,10 +30,10 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
         const formData = new FormData(e.currentTarget);
         
         try {
-            await addExpense({
+            await addIncome({
                 description: formData.get('description') as string,
                 amount: parseFloat(formData.get('amount') as string),
-                category: formData.get('category') as 'SUPPLIES' | 'UTILITIES' | 'MAINTENANCE' | 'OTHER',
+                category: formData.get('category') as 'SERVICE' | 'REFUND' | 'OTHER',
                 paymentMethod: formData.get('paymentMethod') as 'CASH' | 'QRIS',
                 date: new Date(formData.get('date') as string),
                 notes: formData.get('notes') as string || undefined,
@@ -49,10 +49,10 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm('Delete this expense?')) return;
+        if (!confirm('Delete this income?')) return;
         
         try {
-            await deleteExpense(id);
+            await deleteIncome(id);
         } catch (error: any) {
             alert(error.message);
         }
@@ -69,41 +69,41 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Daily Expenses</h3>
-                <Button onClick={() => setIsAddOpen(true)}>+ Add Expense</Button>
+                <h3 className="text-lg font-semibold">Daily Income</h3>
+                <Button onClick={() => setIsAddOpen(true)}>+ Add Income</Button>
             </div>
 
-            {expenses.length === 0 ? (
+            {incomes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                    No expenses recorded for this period
+                    No income recorded for this period
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {expenses.map((expense) => (
-                        <div key={expense.id} className="flex items-start justify-between p-3 border rounded-md">
+                    {incomes.map((income) => (
+                        <div key={income.id} className="flex items-start justify-between p-3 border rounded-md">
                             <div className="flex-1">
-                                <div className="font-medium">{expense.description}</div>
+                                <div className="font-medium">{income.description}</div>
                                 <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <span>{expense.category}</span>
+                                    <span>{income.category}</span>
                                     <span>•</span>
-                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${getPaymentMethodBadgeColor(expense.paymentMethod)}`}>
-                                        {expense.paymentMethod}
+                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${getPaymentMethodBadgeColor(income.paymentMethod)}`}>
+                                        {income.paymentMethod}
                                     </span>
                                     <span>•</span>
-                                    <span>{new Date(expense.date).toLocaleDateString()}</span>
+                                    <span>{new Date(income.date).toLocaleDateString()}</span>
                                     <span>•</span>
-                                    <span>{expense.user?.name}</span>
+                                    <span>{income.user?.name}</span>
                                 </div>
-                                {expense.notes && (
-                                    <div className="text-sm text-muted-foreground mt-1">{expense.notes}</div>
+                                {income.notes && (
+                                    <div className="text-sm text-muted-foreground mt-1">{income.notes}</div>
                                 )}
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="text-red-600 font-semibold">-{formatRupiah(Number(expense.amount))}</div>
+                                <div className="text-green-600 font-semibold">+{formatRupiah(Number(income.amount))}</div>
                                 <button
-                                    onClick={() => handleDelete(expense.id)}
+                                    onClick={() => handleDelete(income.id)}
                                     className="text-xs text-red-500 hover:text-red-700"
-                                    title="Delete expense"
+                                    title="Delete income"
                                 >
                                     Delete
                                 </button>
@@ -116,42 +116,43 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
             <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add New Expense</DialogTitle>
-                        <DialogDescription>Record an unexpected daily expense</DialogDescription>
+                        <DialogTitle>Add Income</DialogTitle>
+                        <DialogDescription>Record daily additional income</DialogDescription>
                     </DialogHeader>
+                    
                     <form onSubmit={handleAdd} className="space-y-4">
                         <div>
                             <Label htmlFor="description">Description *</Label>
                             <Input
                                 id="description"
                                 name="description"
-                                placeholder="e.g., Bought ice"
+                                placeholder="e.g., Service charge, Refund reversal"
                                 required
                             />
                         </div>
+
                         <div>
-                            <Label htmlFor="amount">Amount (Rp) *</Label>
+                            <Label htmlFor="amount">Amount (IDR) *</Label>
                             <Input
                                 id="amount"
                                 name="amount"
                                 type="number"
                                 step="0.01"
-                                min="0"
-                                placeholder="5000"
+                                placeholder="0"
                                 required
                             />
                         </div>
+
                         <div>
                             <Label htmlFor="category">Category *</Label>
                             <select
                                 id="category"
                                 name="category"
-                                className="w-full px-3 py-2 border rounded-md"
+                                className="w-full px-3 py-2 border border-input rounded-md bg-background"
                                 required
                             >
-                                <option value="SUPPLIES">Supplies</option>
-                                <option value="UTILITIES">Utilities</option>
-                                <option value="MAINTENANCE">Maintenance</option>
+                                <option value="SERVICE">Service</option>
+                                <option value="REFUND">Refund</option>
                                 <option value="OTHER">Other</option>
                             </select>
                         </div>
@@ -179,22 +180,26 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
                                 required
                             />
                         </div>
+
                         <div>
-                            <Label htmlFor="notes">Notes (optional)</Label>
-                            <textarea
+                            <Label htmlFor="notes">Notes</Label>
+                            <Input
                                 id="notes"
                                 name="notes"
-                                className="w-full px-3 py-2 border rounded-md"
-                                rows={2}
-                                placeholder="Additional details..."
+                                placeholder="Additional notes (optional)"
                             />
                         </div>
-                        <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+
+                        <div className="flex gap-2 justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setIsAddOpen(false)}
+                            >
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>
-                                {isSubmitting ? 'Adding...' : 'Add Expense'}
+                                {isSubmitting ? 'Adding...' : 'Add Income'}
                             </Button>
                         </div>
                     </form>

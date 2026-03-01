@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { orders, orderItems, payments, products, shifts, expenses } from '@/db/schema';
+import { orders, orderItems, payments, products, shifts, expenses, incomes } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 
@@ -75,20 +75,47 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     });
 
     const totalExpenses = expensesInRange.reduce((acc, e) => acc + Number(e.amount), 0);
+    const expensesByMethod: Record<string, number> = {};
+    for (const e of expensesInRange) {
+        expensesByMethod[e.paymentMethod] = (expensesByMethod[e.paymentMethod] || 0) + Number(e.amount);
+    }
+
+    // Get incomes in the range
+    const incomesInRange = await db.query.incomes.findMany({
+        where: and(
+            gte(incomes.date, from),
+            lt(incomes.date, to)
+        ),
+        with: {
+            user: true,
+        },
+        orderBy: [desc(incomes.date)],
+    });
+
+    const totalIncomes = incomesInRange.reduce((acc, i) => acc + Number(i.amount), 0);
+    const incomesByMethod: Record<string, number> = {};
+    for (const i of incomesInRange) {
+        incomesByMethod[i.paymentMethod] = (incomesByMethod[i.paymentMethod] || 0) + Number(i.amount);
+    }
 
     return {
         turnover,
         totalOrders,
         cogs,
         grossProfit: turnover - cogs,
-        netProfit: turnover - cogs - totalExpenses, // Net profit after expenses
+        totalExpenses,
+        totalIncomes,
+        // Net profit = Gross profit (turnover - cogs) - expenses + incomes
+        netProfit: turnover - cogs - totalExpenses + totalIncomes,
         paymentsBreakdown,
         dailyRevenue,
         orders: ordersInRange,
         shifts: shiftsInRange,
         totalCashInDrawer,
         expenses: expensesInRange,
-        totalExpenses,
+        expensesByMethod,
+        incomes: incomesInRange,
+        incomesByMethod,
     };
 }
 
@@ -236,4 +263,145 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
     items.sort((a, b) => a.period.localeCompare(b.period));
 
     return items;
+}
+
+// Get detailed daily cash flow breakdown with income/expense by payment method
+export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
+    await verifySession();
+
+    const ordersInRange = await db.query.orders.findMany({
+        where: and(
+            gte(orders.createdAt, from),
+            lt(orders.createdAt, to),
+            eq(orders.status, 'COMPLETED')
+        ),
+        with: {
+            items: true,
+            payments: true,
+        },
+    });
+
+    const expensesInRange = await db.query.expenses.findMany({
+        where: and(
+            gte(expenses.date, from),
+            lt(expenses.date, to)
+        ),
+    });
+
+    const incomesInRange = await db.query.incomes.findMany({
+        where: and(
+            gte(incomes.date, from),
+            lt(incomes.date, to)
+        ),
+    });
+
+    // Group by date
+    const dailyCashflow: Record<string, {
+        date: string;
+        ordersTotal: number;
+        cashIncome: number;
+        qrisIncome: number;
+        cashExpenses: number;
+        qrisExpenses: number;
+        cashAdditional: number;
+        qrisAdditional: number;
+        netCash: number;
+        netQris: number;
+        netDailyIncome: number;
+    }> = {};
+
+    // Process orders (from payment breakdown)
+    for (const order of ordersInRange) {
+        const dateStr = new Date(order.createdAt).toISOString().slice(0, 10);
+        if (!dailyCashflow[dateStr]) {
+            dailyCashflow[dateStr] = {
+                date: dateStr,
+                ordersTotal: 0,
+                cashIncome: 0,
+                qrisIncome: 0,
+                cashExpenses: 0,
+                qrisExpenses: 0,
+                cashAdditional: 0,
+                qrisAdditional: 0,
+                netCash: 0,
+                netQris: 0,
+                netDailyIncome: 0,
+            };
+        }
+        dailyCashflow[dateStr].ordersTotal += Number(order.totalAmount);
+
+        for (const payment of order.payments || []) {
+            if (payment.method === 'CASH') {
+                dailyCashflow[dateStr].cashIncome += Number(payment.amount);
+            } else if (payment.method === 'QRIS') {
+                dailyCashflow[dateStr].qrisIncome += Number(payment.amount);
+            }
+        }
+    }
+
+    // Process expenses
+    for (const expense of expensesInRange) {
+        const dateStr = new Date(expense.date).toISOString().slice(0, 10);
+        if (!dailyCashflow[dateStr]) {
+            dailyCashflow[dateStr] = {
+                date: dateStr,
+                ordersTotal: 0,
+                cashIncome: 0,
+                qrisIncome: 0,
+                cashExpenses: 0,
+                qrisExpenses: 0,
+                cashAdditional: 0,
+                qrisAdditional: 0,
+                netCash: 0,
+                netQris: 0,
+                netDailyIncome: 0,
+            };
+        }
+
+        if (expense.paymentMethod === 'CASH') {
+            dailyCashflow[dateStr].cashExpenses += Number(expense.amount);
+        } else if (expense.paymentMethod === 'QRIS') {
+            dailyCashflow[dateStr].qrisExpenses += Number(expense.amount);
+        }
+    }
+
+    // Process incomes
+    for (const income of incomesInRange) {
+        const dateStr = new Date(income.date).toISOString().slice(0, 10);
+        if (!dailyCashflow[dateStr]) {
+            dailyCashflow[dateStr] = {
+                date: dateStr,
+                ordersTotal: 0,
+                cashIncome: 0,
+                qrisIncome: 0,
+                cashExpenses: 0,
+                qrisExpenses: 0,
+                cashAdditional: 0,
+                qrisAdditional: 0,
+                netCash: 0,
+                netQris: 0,
+                netDailyIncome: 0,
+            };
+        }
+
+        if (income.paymentMethod === 'CASH') {
+            dailyCashflow[dateStr].cashAdditional += Number(income.amount);
+        } else if (income.paymentMethod === 'QRIS') {
+            dailyCashflow[dateStr].qrisAdditional += Number(income.amount);
+        }
+    }
+
+    // Calculate net daily income for each day
+    for (const dateStr in dailyCashflow) {
+        const day = dailyCashflow[dateStr];
+        // Net CASH = Cash income + Cash additional income - Cash expenses
+        day.netCash = day.cashIncome + day.cashAdditional - day.cashExpenses;
+        // Net QRIS = QRIS income + QRIS additional income - QRIS expenses
+        day.netQris = day.qrisIncome + day.qrisAdditional - day.qrisExpenses;
+        // Net daily income = total cash income + total QRIS income + total additional income - total expenses
+        day.netDailyIncome = day.netCash + day.netQris;
+    }
+
+    const results = Object.values(dailyCashflow).sort((a, b) => a.date.localeCompare(b.date));
+    return results;
 }

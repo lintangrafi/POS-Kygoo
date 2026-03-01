@@ -65,6 +65,40 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                     </div>
                 </CardContent>
             </Card>
+
+            {order.payments && order.payments.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Payment Method</CardTitle>
+                        <CardDescription>Payment breakdown</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {order.payments.map((p: any, idx: number) => (
+                                <div key={idx} className="flex items-center justify-between p-3 border rounded-md">
+                                    <div className="flex items-center gap-3">
+                                        <span className={`px-3 py-1 rounded text-xs font-semibold ${
+                                            p.method === 'CASH' ? 'bg-green-100 text-green-800' :
+                                            p.method === 'QRIS' ? 'bg-blue-100 text-blue-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }`}>
+                                            {p.method}
+                                        </span>
+                                        <span className="text-sm text-muted-foreground">Payment {idx + 1}</span>
+                                    </div>
+                                    <div className="font-semibold text-lg">{formatRupiah(Number(p.amount))}</div>
+                                </div>
+                            ))}
+                            {order.payments.length > 1 && (
+                                <div className="mt-4 pt-3 border-t flex items-center justify-between font-bold">
+                                    <span>Split Bill ({order.payments.length} methods)</span>
+                                    <span className="text-lg">{formatRupiah(Number(order.totalAmount))}</span>
+                                </div>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

@@ -1,34 +1,34 @@
 'use server';
 
 import { db } from '@/db';
-import { expenses, auditLogs } from '@/db/schema';
+import { incomes, auditLogs } from '@/db/schema';
 import { and, gte, lt, desc, eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function getExpenses({ from, to }: { from?: Date; to?: Date }) {
+export async function getIncomes({ from, to }: { from?: Date; to?: Date }) {
     const session = await verifySession();
 
     const conditions: any[] = [];
-    if (from) conditions.push(gte(expenses.date, from));
-    if (to) conditions.push(lt(expenses.date, to));
+    if (from) conditions.push(gte(incomes.date, from));
+    if (to) conditions.push(lt(incomes.date, to));
 
-    const result = await db.query.expenses.findMany({
+    const result = await db.query.incomes.findMany({
         where: conditions.length > 0 ? and(...conditions) : undefined,
         with: {
             user: true,
         },
-        orderBy: [desc(expenses.date)],
+        orderBy: [desc(incomes.date)],
         limit: 100,
     });
 
     return result;
 }
 
-export async function addExpense(data: {
+export async function addIncome(data: {
     description: string;
     amount: number;
-    category: 'SUPPLIES' | 'UTILITIES' | 'MAINTENANCE' | 'OTHER';
+    category: 'SERVICE' | 'REFUND' | 'OTHER';
     paymentMethod: 'CASH' | 'QRIS';
     date: Date;
     notes?: string;
@@ -36,10 +36,10 @@ export async function addExpense(data: {
     const session = await verifySession();
 
     if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can add expenses');
+        throw new Error('Only admins can add incomes');
     }
 
-    const [expense] = await db.insert(expenses).values({
+    const [income] = await db.insert(incomes).values({
         userId: session.userId,
         description: data.description,
         amount: data.amount.toString(),
@@ -53,19 +53,19 @@ export async function addExpense(data: {
     await db.insert(auditLogs).values({
         userId: session.userId,
         action: 'CREATE',
-        entity: 'EXPENSE',
-        entityId: expense.id,
-        newValue: JSON.stringify(expense),
+        entity: 'INCOME',
+        entityId: income.id,
+        newValue: JSON.stringify(income),
     });
 
     revalidatePath('/reports');
-    return expense;
+    return income;
 }
 
-export async function updateExpense(id: number, data: {
+export async function updateIncome(id: number, data: {
     description?: string;
     amount?: number;
-    category?: 'SUPPLIES' | 'UTILITIES' | 'MAINTENANCE' | 'OTHER';
+    category?: 'SERVICE' | 'REFUND' | 'OTHER';
     paymentMethod?: 'CASH' | 'QRIS';
     date?: Date;
     notes?: string;
@@ -73,15 +73,15 @@ export async function updateExpense(id: number, data: {
     const session = await verifySession();
 
     if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can update expenses');
+        throw new Error('Only admins can update incomes');
     }
 
-    const existing = await db.query.expenses.findFirst({
-        where: eq(expenses.id, id),
+    const existing = await db.query.incomes.findFirst({
+        where: eq(incomes.id, id),
     });
 
     if (!existing) {
-        throw new Error('Expense not found');
+        throw new Error('Income not found');
     }
 
     const updates: any = {};
@@ -92,16 +92,16 @@ export async function updateExpense(id: number, data: {
     if (data.date !== undefined) updates.date = data.date;
     if (data.notes !== undefined) updates.notes = data.notes;
 
-    const [updated] = await db.update(expenses)
+    const [updated] = await db.update(incomes)
         .set(updates)
-        .where(eq(expenses.id, id))
+        .where(eq(incomes.id, id))
         .returning();
 
     // Log the action
     await db.insert(auditLogs).values({
         userId: session.userId,
         action: 'UPDATE',
-        entity: 'EXPENSE',
+        entity: 'INCOME',
         entityId: id,
         oldValue: JSON.stringify(existing),
         newValue: JSON.stringify(updated),
@@ -111,28 +111,28 @@ export async function updateExpense(id: number, data: {
     return updated;
 }
 
-export async function deleteExpense(id: number) {
+export async function deleteIncome(id: number) {
     const session = await verifySession();
 
     if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can delete expenses');
+        throw new Error('Only admins can delete incomes');
     }
 
-    const existing = await db.query.expenses.findFirst({
-        where: eq(expenses.id, id),
+    const existing = await db.query.incomes.findFirst({
+        where: eq(incomes.id, id),
     });
 
     if (!existing) {
-        throw new Error('Expense not found');
+        throw new Error('Income not found');
     }
 
-    await db.delete(expenses).where(eq(expenses.id, id));
+    await db.delete(incomes).where(eq(incomes.id, id));
 
     // Log the action
     await db.insert(auditLogs).values({
         userId: session.userId,
         action: 'DELETE',
-        entity: 'EXPENSE',
+        entity: 'INCOME',
         entityId: id,
         oldValue: JSON.stringify(existing),
     });

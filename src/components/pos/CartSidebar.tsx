@@ -24,6 +24,7 @@ export function CartSidebar() {
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'TRANSFER'>('CASH');
     const [discountType, setDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
     const [discountValue, setDiscountValue] = useState<number>(0);
+    const [isProcessing, setIsProcessing] = useState(false); // Prevent double submission
 
     // Split-bill state
     const [isSplitMode, setIsSplitMode] = useState(false);
@@ -65,6 +66,9 @@ export function CartSidebar() {
             setSplitNonCashAmount(0);
             setSplitNonCashMethod('QRIS');
             setNumpadTarget('CASH');
+            setIsProcessing(false); // Reset processing flag when modal opens
+        } else {
+            setIsProcessing(false); // Reset processing flag when modal closes
         }
     }, [isPaymentModalOpen, totalAfterDiscount]);
 
@@ -103,25 +107,72 @@ export function CartSidebar() {
     };
 
     const handleCheckout = async () => {
+        // Prevent double submission
+        if (isProcessing) {
+            notify("Processing transaction, please wait...");
+            return;
+        }
+
         if (cart.length === 0) return;
 
-        if (isSplitMode) {
-            const sum = Number(splitCashAmount || 0) + Number(splitNonCashAmount || 0);
-            if (sum < totalAfterDiscount) {
-                notify("Insufficient total payment for split bill!");
+        setIsProcessing(true); // Set processing flag
+
+        try {
+            if (isSplitMode) {
+                const sum = Number(splitCashAmount || 0) + Number(splitNonCashAmount || 0);
+                if (sum < totalAfterDiscount) {
+                    notify("Insufficient total payment for split bill!");
+                    setIsProcessing(false);
+                    return;
+                }
+
+                const paymentMethods: { method: 'CASH'|'QRIS'|'TRANSFER'; amount: number }[] = [];
+                if (Number(splitCashAmount) > 0) paymentMethods.push({ method: 'CASH', amount: Number(splitCashAmount) });
+                if (Number(splitNonCashAmount) > 0) paymentMethods.push({ method: splitNonCashMethod as 'QRIS'|'TRANSFER', amount: Number(splitNonCashAmount) });
+
+                const changeAmount = Math.max(0, sum - totalAfterDiscount);
+
+                // Processing
+                const result = await processTransaction({
+                    items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
+                    paymentMethods,
+                    subtotalAmount: subtotal,
+                    discountAmount,
+                    discountPercent,
+                    totalAmount: totalAfterDiscount,
+                });
+
+                if (result.success) {
+                    notify("Transaction Successful!");
+                    clearCart();
+                    setDiscountValue(0);
+                    setIsPaymentModalOpen(false);
+                    setAmountPaid('0');
+                    setIsSplitMode(false);
+                    setSplitCashAmount(0);
+                    setSplitNonCashAmount(0);
+                } else {
+                    notify("Transaction Failed: " + result.error);
+                }
+
+                setIsProcessing(false);
                 return;
             }
 
-            const paymentMethods: { method: 'CASH'|'QRIS'|'TRANSFER'; amount: number }[] = [];
-            if (Number(splitCashAmount) > 0) paymentMethods.push({ method: 'CASH', amount: Number(splitCashAmount) });
-            if (Number(splitNonCashAmount) > 0) paymentMethods.push({ method: splitNonCashMethod as 'QRIS'|'TRANSFER', amount: Number(splitNonCashAmount) });
-
-            const changeAmount = Math.max(0, sum - totalAfterDiscount);
+            // Simple logic: if Cash, ensure paid >= total
+            if (paymentMethod === 'CASH' && parseInt(amountPaid) < totalAfterDiscount) {
+                notify("Insufficient cash!");
+                setIsProcessing(false);
+                return;
+            }
 
             // Processing
             const result = await processTransaction({
                 items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
-                paymentMethods,
+                paymentMethods: [{
+                    method: paymentMethod,
+                    amount: paymentMethod === 'CASH' ? totalAfterDiscount : totalAfterDiscount // For now assume full payment via one method or simple split later
+                }],
                 subtotalAmount: subtotal,
                 discountAmount,
                 discountPercent,
@@ -129,41 +180,6 @@ export function CartSidebar() {
             });
 
             if (result.success) {
-                notify("Transaction Successful!");
-                clearCart();
-                setDiscountValue(0);
-                setIsPaymentModalOpen(false);
-                setAmountPaid('0');
-                setIsSplitMode(false);
-                setSplitCashAmount(0);
-                setSplitNonCashAmount(0);
-            } else {
-                notify("Transaction Failed: " + result.error);
-            }
-
-            return;
-        }
-
-        // Simple logic: if Cash, ensure paid >= total
-        if (paymentMethod === 'CASH' && parseInt(amountPaid) < totalAfterDiscount) {
-            notify("Insufficient cash!");
-            return;
-        }
-
-        // Processing
-        const result = await processTransaction({
-            items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
-            paymentMethods: [{
-                method: paymentMethod,
-                amount: paymentMethod === 'CASH' ? totalAfterDiscount : totalAfterDiscount // For now assume full payment via one method or simple split later
-            }],
-            subtotalAmount: subtotal,
-            discountAmount,
-            discountPercent,
-            totalAmount: totalAfterDiscount,
-        });
-
-        if (result.success) {
             // Print Receipt Logic Here
             const receiptContent = `
                 KYGOO STUDIO
@@ -195,6 +211,13 @@ export function CartSidebar() {
             setAmountPaid('0');
         } else {
             notify("Transaction Failed: " + result.error);
+        }
+
+        setIsProcessing(false); // Reset processing flag
+        } catch (error) {
+            console.error('Checkout error:', error);
+            notify("An error occurred during checkout. Please try again.");
+            setIsProcessing(false); // Ensure flag is reset on error
         }
     };
 
@@ -299,14 +322,14 @@ export function CartSidebar() {
 
             {/* Payment Modal */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-                <DialogContent className="max-w-[95vw] md:max-w-4xl h-[90vh] md:h-[80vh] flex flex-col">
+                <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
                     <DialogHeader>
                         <DialogTitle>Payment</DialogTitle>
                     </DialogHeader>
 
-                    <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0">
+                    <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0 overflow-hidden">
                         {/* Left: Summary & Methods */}
-                        <div className="w-full md:w-1/2 flex flex-col gap-4">
+                        <div className="w-full md:w-1/2 flex flex-col gap-4 overflow-y-auto pr-2">
                             <div className="bg-white p-4 rounded-lg shadow-sm">
                                 <span className="block text-sm text-muted-foreground">Total Due</span>
                                 <span className="block text-4xl font-bold">{formatRupiah(totalAfterDiscount)}</span>
@@ -322,7 +345,7 @@ export function CartSidebar() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="flex-shrink-0 grid grid-cols-3 gap-2">
                                 <Button
                                     variant={paymentMethod === 'CASH' ? 'default' : 'outline'}
                                     className="h-20 flex-col gap-2"
@@ -349,7 +372,7 @@ export function CartSidebar() {
                                 </Button>
                             </div>
 
-                            <div className="mt-3">
+                            <div className="flex-shrink-0 mt-3">
                                 <Label htmlFor="discountValue">Discount</Label>
                                 <div className="flex gap-2">
                                     <select
@@ -366,8 +389,21 @@ export function CartSidebar() {
                                         min={0}
                                         max={discountType === 'PERCENT' ? 100 : subtotal}
                                         step={discountType === 'PERCENT' ? 0.1 : 1}
-                                        value={discountValue}
-                                        onChange={(e) => setDiscountValue(Number(e.target.value || 0))}
+                                        value={discountValue || ''}
+                                        onChange={(e) => {
+                                            const val = e.target.value.trim();
+                                            if (val === '') {
+                                                setDiscountValue(0);
+                                            } else {
+                                                let num = Number(val);
+                                                if (discountType === 'PERCENT') {
+                                                    num = Math.min(Math.max(num, 0), 100);
+                                                } else {
+                                                    num = Math.min(Math.max(num, 0), subtotal);
+                                                }
+                                                setDiscountValue(num);
+                                            }
+                                        }}
                                         className="w-full rounded border px-2 py-1"
                                     />
                                 </div>
@@ -376,7 +412,7 @@ export function CartSidebar() {
                                 </div>
                             </div>
 
-                            <div className="mt-3 flex gap-2">
+                            <div className="flex-shrink-0 mt-3 flex gap-2">
                                 <Button variant={isSplitMode ? 'default' : 'outline'} onClick={() => setIsSplitMode(!isSplitMode)} className="flex-1">
                                     {isSplitMode ? 'Split: ON' : 'Split Bill'}
                                 </Button>
@@ -386,7 +422,24 @@ export function CartSidebar() {
                                 <div className="mt-3 space-y-2">
                                     <div>
                                         <Label htmlFor="splitCash">Cash Amount</Label>
-                                        <input id="splitCash" type="number" min={0} value={splitCashAmount} onFocus={() => setNumpadTarget('CASH')} onChange={(e) => setSplitCashAmount(Number(e.target.value))} className="w-full rounded border px-2 py-1" />
+                                        <input 
+                                            id="splitCash" 
+                                            type="number" 
+                                            min={0} 
+                                            value={splitCashAmount || ''}
+                                            onFocus={() => setNumpadTarget('CASH')} 
+                                            onChange={(e) => {
+                                                const val = e.target.value.trim();
+                                                if (val === '') {
+                                                    setSplitCashAmount(0);
+                                                } else {
+                                                    let num = Number(val);
+                                                    num = Math.min(Math.max(num, 0), totalAfterDiscount);
+                                                    setSplitCashAmount(num);
+                                                }
+                                            }}
+                                            className="w-full rounded border px-2 py-1" 
+                                        />
                                     </div>
                                     <div>
                                         <Label htmlFor="splitNonCash">Non-cash Method</Label>
@@ -395,7 +448,24 @@ export function CartSidebar() {
                                                 <option value="QRIS">QRIS</option>
                                                 <option value="TRANSFER">Transfer</option>
                                             </select>
-                                            <input id="splitNonCash" type="number" min={0} value={splitNonCashAmount} onFocus={() => setNumpadTarget('NONCASH')} onChange={(e) => setSplitNonCashAmount(Number(e.target.value))} className="w-full rounded border px-2 py-1" />
+                                            <input 
+                                                id="splitNonCash" 
+                                                type="number" 
+                                                min={0} 
+                                                value={splitNonCashAmount || ''}
+                                                onFocus={() => setNumpadTarget('NONCASH')} 
+                                                onChange={(e) => {
+                                                    const val = e.target.value.trim();
+                                                    if (val === '') {
+                                                        setSplitNonCashAmount(0);
+                                                    } else {
+                                                        let num = Number(val);
+                                                        num = Math.min(Math.max(num, 0), totalAfterDiscount);
+                                                        setSplitNonCashAmount(num);
+                                                    }
+                                                }}
+                                                className="w-full rounded border px-2 py-1" 
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -414,7 +484,7 @@ export function CartSidebar() {
                         </div>
 
                         {/* Right: Numpad (Only active for Cash usually) */}
-                        <div className="w-full md:w-1/2 h-full">
+                        <div className="w-full md:w-1/2 h-full overflow-hidden">
                             <SmartNumpad
                                 value={isSplitMode ? (numpadTarget === 'CASH' ? String(splitCashAmount) : numpadTarget === 'NONCASH' ? String(splitNonCashAmount) : amountPaid) : amountPaid}
                                 onInput={handleNumpadInput}
@@ -437,6 +507,7 @@ export function CartSidebar() {
                                     }
                                 }}
                                 onEnter={handleCheckout}
+                                isProcessing={isProcessing}
                             />
                         </div>
                     </div>

@@ -35,6 +35,21 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
         load();
     }, []);
 
+    // Reset form when dialog opens in 'add' mode
+    useEffect(() => {
+        if (open && mode === 'add') {
+            setForm({
+                name: '',
+                sku: '',
+                categoryId: undefined,
+                price: '',
+                costPrice: '',
+                stock: 0,
+                isMenuItem: true,
+            });
+        }
+    }, [open, mode]);
+
     function setField(key: string, val: any) {
         setForm((s: any) => ({ ...s, [key]: val }));
     }

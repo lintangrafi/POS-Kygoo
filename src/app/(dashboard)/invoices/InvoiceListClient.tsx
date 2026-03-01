@@ -46,6 +46,7 @@ export default function InvoiceListClient({ serverOrders }: any) {
                         <TableHead>Time</TableHead>
                         <TableHead>Cashier</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Payment Method</TableHead>
                         <TableHead>Discount</TableHead>
                         <TableHead>Total</TableHead>
                         <TableHead>Actions</TableHead>
@@ -68,6 +69,23 @@ export default function InvoiceListClient({ serverOrders }: any) {
                                 <TableCell>{o.user?.name || 'Unknown'}</TableCell>
                                 <TableCell>{o.status}</TableCell>
                                 <TableCell>
+                                    <div className="flex flex-wrap gap-1">
+                                        {o.payments && o.payments.length > 0 ? (
+                                            o.payments.map((p: any, idx: number) => (
+                                                <span key={idx} className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                    p.method === 'CASH' ? 'bg-green-100 text-green-800' :
+                                                    p.method === 'QRIS' ? 'bg-blue-100 text-blue-800' :
+                                                    'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {p.method}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-muted-foreground text-xs">-</span>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
                                     <div className="text-sm font-medium">
                                         {formatRupiah(Number(o.discountAmount || 0))}
                                     </div>
@@ -88,7 +106,7 @@ export default function InvoiceListClient({ serverOrders }: any) {
                             </TableRow>
                             {expandedId === o.id && o.items && o.items.length > 0 && (
                                 <TableRow className="bg-slate-50">
-                                    <TableCell colSpan={8} className="p-4">
+                                    <TableCell colSpan={9} className="p-4">
                                         <div className="ml-6">
                                             <h4 className="font-semibold text-sm mb-3">Items Sold:</h4>
                                             <Table className="text-sm">
@@ -123,6 +141,32 @@ export default function InvoiceListClient({ serverOrders }: any) {
                                                     <div className="font-semibold">{formatRupiah(Number(o.totalAmount))}</div>
                                                 </div>
                                             </div>
+
+                                            {o.payments && o.payments.length > 0 && (
+                                                <div className="mt-6 pt-4 border-t">
+                                                    <h5 className="font-semibold text-sm mb-3">Payment Method:</h5>
+                                                    <div className="space-y-2">
+                                                        {o.payments.map((p: any, idx: number) => (
+                                                            <div key={idx} className="flex items-center justify-between p-2 border rounded text-sm">
+                                                                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                                                                    p.method === 'CASH' ? 'bg-green-100 text-green-800' :
+                                                                    p.method === 'QRIS' ? 'bg-blue-100 text-blue-800' :
+                                                                    'bg-gray-100 text-gray-800'
+                                                                }`}>
+                                                                    {p.method}
+                                                                </span>
+                                                                <span className="font-medium">{formatRupiah(Number(p.amount))}</span>
+                                                            </div>
+                                                        ))}
+                                                        {o.payments.length > 1 && (
+                                                            <div className="mt-2 pt-2 border-t font-semibold flex justify-between text-xs">
+                                                                <span>Split Bill ({o.payments.length} methods)</span>
+                                                                <span>{formatRupiah(Number(o.totalAmount))}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>

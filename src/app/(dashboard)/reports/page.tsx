@@ -1,9 +1,11 @@
 import { getAuditLogs } from '@/actions/admin-actions';
-import { getFinancialReport, getTopProducts, getAggregatedRevenue } from '@/actions/report-actions';
+import { getFinancialReport, getTopProducts, getAggregatedRevenue, getDailyCashflow } from '@/actions/report-actions';
 import { getExpenses } from '@/actions/expense-actions';
+import { getIncomes } from '@/actions/income-actions';
 import TrendChart from '@/components/reports/TrendChart';
 import BarChart from '@/components/reports/BarChart';
 import { ExpenseManagement } from '@/components/reports/ExpenseManagement';
+import { IncomeManagement } from '@/components/reports/IncomeManagement';
 import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -59,6 +61,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
 
     // fetch expenses filtered by selected range
     const expensesList = await getExpenses({ from, to: toInclusive });
+
+    // fetch incomes filtered by selected range
+    const incomesList = await getIncomes({ from, to: toInclusive });
+
+    // fetch daily cashflow detailed breakdown
+    const dailyCashflow = await getDailyCashflow({ from, to: toInclusive });
 
     // aggregated series used for charts when not custom/today
     let aggregated: { period: string; amount: number; paymentsBreakdown: Record<string, number>; ordersCount: number; cashInDrawer: number; expenses: number }[] | null = null;
@@ -166,6 +174,17 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <div className="text-sm text-muted-foreground">{r.expenses?.length || 0} expense(s)</div>
                     </CardContent>
                 </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Additional Income</CardTitle>
+                        <CardDescription>Daily additional income sources</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-semibold text-green-600">+{formatRupiah(r.totalIncomes || 0)}</div>
+                        <div className="text-sm text-muted-foreground">{r.incomes?.length || 0} income(s)</div>
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -183,7 +202,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 <Card>
                     <CardHeader>
                         <CardTitle>Net Profit</CardTitle>
-                        <CardDescription>Gross Profit - Expenses</CardDescription>
+                        <CardDescription>Gross Profit - Expenses + Additional Income</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-semibold">{formatRupiah(r.netProfit || 0)}</div>
@@ -205,18 +224,84 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Payments Breakdown</CardTitle>
-                    <CardDescription>By payment method for selected period</CardDescription>
+                    <CardTitle>Expenses & Income by Payment Method</CardTitle>
+                    <CardDescription>Breakdown of cash vs QRIS for selected period</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        {Object.entries(r.paymentsBreakdown || {}).map(([method, amount]) => (
-                            <div key={method} className="border rounded-md p-3">
-                                <div className="text-sm font-medium text-muted-foreground">{method}</div>
-                                <div className="text-lg font-semibold">{formatRupiah(Number(amount))}</div>
-                            </div>
-                        ))}
+                        <div className="border rounded-md p-3 bg-red-50">
+                            <div className="text-sm font-medium text-muted-foreground">Cash Expenses</div>
+                            <div className="text-lg font-semibold text-red-600">{formatRupiah(r.expensesByMethod?.CASH || 0)}</div>
+                        </div>
+                        <div className="border rounded-md p-3 bg-red-50">
+                            <div className="text-sm font-medium text-muted-foreground">QRIS Expenses</div>
+                            <div className="text-lg font-semibold text-red-600">{formatRupiah(r.expensesByMethod?.QRIS || 0)}</div>
+                        </div>
+                        <div className="border rounded-md p-3 bg-green-50">
+                            <div className="text-sm font-medium text-muted-foreground">Cash Additional Income</div>
+                            <div className="text-lg font-semibold text-green-600">+{formatRupiah(r.incomesByMethod?.CASH || 0)}</div>
+                        </div>
+                        <div className="border rounded-md p-3 bg-green-50">
+                            <div className="text-sm font-medium text-muted-foreground">QRIS Additional Income</div>
+                            <div className="text-lg font-semibold text-green-600">+{formatRupiah(r.incomesByMethod?.QRIS || 0)}</div>
+                        </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Daily Cashflow Detail */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Daily Cashflow Detail</CardTitle>
+                    <CardDescription>Net cash by payment method for each day (Cash/QRIS income + additional income - expenses)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {dailyCashflow && dailyCashflow.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Orders Total</TableHead>
+                                    <TableHead className="bg-green-50">Cash Income</TableHead>
+                                    <TableHead className="bg-blue-50">QRIS Income</TableHead>
+                                    <TableHead className="bg-green-50">Cash +Income</TableHead>
+                                    <TableHead className="bg-blue-50">QRIS +Income</TableHead>
+                                    <TableHead className="bg-red-50">Cash Exp</TableHead>
+                                    <TableHead className="bg-red-50">QRIS Exp</TableHead>
+                                    <TableHead className="font-bold bg-green-100">Net Cash</TableHead>
+                                    <TableHead className="font-bold bg-blue-100">Net QRIS</TableHead>
+                                    <TableHead className="font-bold">Daily Net</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {dailyCashflow.map((day, idx) => (
+                                    <TableRow key={idx}>
+                                        <TableCell className="font-medium">{day.date}</TableCell>
+                                        <TableCell>{formatRupiah(day.ordersTotal)}</TableCell>
+                                        <TableCell className="bg-green-50">{formatRupiah(day.cashIncome)}</TableCell>
+                                        <TableCell className="bg-blue-50">{formatRupiah(day.qrisIncome)}</TableCell>
+                                        <TableCell className="bg-green-50 text-green-600">+{formatRupiah(day.cashAdditional)}</TableCell>
+                                        <TableCell className="bg-blue-50 text-green-600">+{formatRupiah(day.qrisAdditional)}</TableCell>
+                                        <TableCell className="bg-red-50 text-red-600">{formatRupiah(day.cashExpenses)}</TableCell>
+                                        <TableCell className="bg-red-50 text-red-600">{formatRupiah(day.qrisExpenses)}</TableCell>
+                                        <TableCell className={`font-bold bg-green-100 ${day.netCash >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                            {day.netCash >= 0 ? '+' : '-'}{formatRupiah(Math.abs(day.netCash))}
+                                        </TableCell>
+                                        <TableCell className={`font-bold bg-blue-100 ${day.netQris >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                            {day.netQris >= 0 ? '+' : '-'}{formatRupiah(Math.abs(day.netQris))}
+                                        </TableCell>
+                                        <TableCell className={`font-bold ${day.netDailyIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                            {day.netDailyIncome >= 0 ? '+' : '-'}{formatRupiah(Math.abs(day.netDailyIncome))}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                            No financial data for selected period
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
@@ -386,6 +471,16 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     </CardContent>
                 </Card>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Income Management</CardTitle>
+                    <CardDescription>Record daily additional income (services, refunds, etc)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <IncomeManagement incomes={incomesList as any} />
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>

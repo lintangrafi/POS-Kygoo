@@ -1,5 +1,5 @@
 import { getOpenShift } from '@/actions/shift-actions';
-import { getPosData } from '@/actions/pos-actions';
+import { getOpenBills, getPosData } from '@/actions/pos-actions';
 import { redirect } from 'next/navigation';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartSidebar } from '@/components/pos/CartSidebar';
@@ -13,6 +13,7 @@ export default async function POSPage() {
 
     // Fetch initial data
     const { categories, products } = await getPosData();
+    const initialOpenBills = await getOpenBills();
 
     return (
         <div className="flex h-screen overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100/70 dark:from-background dark:to-background">
@@ -23,7 +24,7 @@ export default async function POSPage() {
 
             {/* Sidebar Cart Area */}
             <div className="w-full md:w-[420px] lg:w-[460px] h-full border-l bg-card">
-                <CartSidebar />
+                <CartSidebar initialOpenBills={initialOpenBills} />
             </div>
         </div>
     );

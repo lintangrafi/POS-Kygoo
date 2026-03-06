@@ -179,7 +179,7 @@ export async function getOpenBills() {
         totalAmount: Number(bill.totalAmount),
         status: bill.status,
         itemCount: bill.items.length,
-        updatedAt: bill.updatedAt,
+        updatedAt: bill.updatedAt.toISOString(),
         cashierName: bill.user?.name || '-',
     }));
 }

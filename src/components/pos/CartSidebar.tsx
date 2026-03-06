@@ -23,14 +23,18 @@ type OpenBillListItem = {
     totalAmount: number;
     status: 'OPEN' | 'PARTIAL' | 'CLOSED' | 'VOID';
     itemCount: number;
-    updatedAt: Date;
+    updatedAt: string;
     cashierName: string;
 };
+
+interface CartSidebarProps {
+    initialOpenBills?: OpenBillListItem[];
+}
 
 // Custom simple toast/alert since we didn't fully setup Toaster
 const notify = (msg: string) => alert(msg);
 
-export function CartSidebar() {
+export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const {
         cart,
         removeFromCart,
@@ -43,7 +47,7 @@ export function CartSidebar() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedToDelete, setSelectedToDelete] = useState<Record<number, boolean>>({});
-    const [openBills, setOpenBills] = useState<OpenBillListItem[]>([]);
+    const [openBills, setOpenBills] = useState<OpenBillListItem[]>(initialOpenBills);
     const [isLoadingOpenBills, setIsLoadingOpenBills] = useState(false);
     const [isSavingOpenBill, setIsSavingOpenBill] = useState(false);
     const [isVoidingOpenBillId, setIsVoidingOpenBillId] = useState<number | null>(null);
@@ -121,10 +125,6 @@ export function CartSidebar() {
             setIsLoadingOpenBills(false);
         }
     };
-
-    useEffect(() => {
-        refreshOpenBills();
-    }, []);
 
     useEffect(() => {
         if (!activeOpenBill) return;

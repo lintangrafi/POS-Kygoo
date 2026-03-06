@@ -668,8 +668,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                         </div>
                     ) : (
                     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-                    <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0 overflow-hidden">
-                        {/* Left: Methods & Settings */}
+                    <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 overflow-hidden">
+                        {/* Left: Methods & Settings & Summary */}
                         <div className="w-full md:w-1/2 flex flex-col gap-4 overflow-y-auto pr-2">
                             <div className="grid gap-2 rounded-md border p-3 bg-muted/20">
                                 <input
@@ -857,6 +857,47 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Total Due & Tendered/Change Summary */}
+                            <div className="mt-4 space-y-3 border-t pt-4">
+                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                                    <span className="block text-sm text-muted-foreground">Total Due</span>
+                                    <span className="block text-3xl font-bold">{formatRupiah(totalAfterDiscount)}</span>
+                                    <div className="mt-2 text-xs text-muted-foreground">
+                                        <div className="flex justify-between">
+                                            <span>Subtotal</span>
+                                            <span>{formatRupiah(subtotal)}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>Discount</span>
+                                            <span>- {formatRupiah(discountAmount)}</span>
+                                        </div>
+                                        {(downPaymentPercent > 0 || downPaymentAmount > 0) && (
+                                            <>
+                                                <div className="flex justify-between mt-1 pt-1 border-t">
+                                                    <span className="text-amber-700 font-medium">DP Received</span>
+                                                    <span className="text-amber-700 font-medium">{formatRupiah(downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-amber-700 font-medium">Remaining</span>
+                                                    <span className="text-amber-700 font-medium">{formatRupiah(Math.max(0, totalAfterDiscount - (downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)))}</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                        <div className="text-xs text-blue-600 font-medium">Tendered</div>
+                                        <div className="text-xl font-bold text-blue-700 mt-1">{formatRupiah(parseInt(amountPaid) || (isSplitMode ? (splitCashAmount + splitNonCashAmount) : 0))}</div>
+                                    </div>
+                                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                        <div className="text-xs text-green-600 font-medium">Change</div>
+                                        <div className="text-xl font-bold text-green-700 mt-1">{formatRupiah(isSplitMode ? Math.max(0, (splitCashAmount + splitNonCashAmount) - totalAfterDiscount) : change)}</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Right: Numpad (Only active for Cash usually) */}
@@ -889,47 +930,6 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 onEnter={handleCheckout}
                                 isProcessing={isProcessing}
                             />
-                        </div>
-                    </div>
-
-                    {/* Bottom: Total Due & Tendered/Change (Full Width) */}
-                    <div className="mt-4 space-y-3 border-t pt-4">
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
-                            <span className="block text-sm text-muted-foreground">Total Due</span>
-                            <span className="block text-4xl font-bold">{formatRupiah(totalAfterDiscount)}</span>
-                            <div className="mt-2 text-sm text-muted-foreground">
-                                <div className="flex justify-between">
-                                    <span>Subtotal</span>
-                                    <span>{formatRupiah(subtotal)}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                    <span>Discount</span>
-                                    <span>- {formatRupiah(discountAmount)}</span>
-                                </div>
-                                {(downPaymentPercent > 0 || downPaymentAmount > 0) && (
-                                    <>
-                                        <div className="flex justify-between mt-2 pt-2 border-t">
-                                            <span className="text-amber-700 font-medium">DP Received</span>
-                                            <span className="text-amber-700 font-medium">{formatRupiah(downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-amber-700 font-medium">Remaining</span>
-                                            <span className="text-amber-700 font-medium">{formatRupiah(Math.max(0, totalAfterDiscount - (downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)))}</span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                                <div className="text-sm text-blue-600 font-medium">Tendered</div>
-                                <div className="text-2xl font-bold text-blue-700 mt-1">{formatRupiah(parseInt(amountPaid) || (isSplitMode ? (splitCashAmount + splitNonCashAmount) : 0))}</div>
-                            </div>
-                            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                                <div className="text-sm text-green-600 font-medium">Change</div>
-                                <div className="text-2xl font-bold text-green-700 mt-1">{formatRupiah(isSplitMode ? Math.max(0, (splitCashAmount + splitNonCashAmount) - totalAfterDiscount) : change)}</div>
-                            </div>
                         </div>
                     </div>
                     </div>

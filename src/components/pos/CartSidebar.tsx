@@ -21,6 +21,9 @@ type OpenBillListItem = {
     discountAmount: number;
     discountPercent: number;
     totalAmount: number;
+    downPaymentPercent: number;
+    downPaymentAmount: number;
+    paidAmount: number;
     status: 'OPEN' | 'PARTIAL' | 'CLOSED' | 'VOID';
     itemCount: number;
     updatedAt: string;
@@ -57,6 +60,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'TRANSFER'>('CASH');
     const [discountType, setDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
     const [discountValue, setDiscountValue] = useState<number>(0);
+    const [downPaymentType, setDownPaymentType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
+    const [downPaymentValue, setDownPaymentValue] = useState<number>(0);
     const [isProcessing, setIsProcessing] = useState(false); // Prevent double submission
     const [customerName, setCustomerName] = useState('');
     const [billNote, setBillNote] = useState('');
@@ -79,6 +84,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
         ? normalizedDiscountValue
         : subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
     const totalAfterDiscount = Math.max(0, subtotal - discountAmount);
+    // Down payment calculations
+    const downPaymentPercent = downPaymentType === 'PERCENT' ? Math.min(Math.max(downPaymentValue, 0), 100) : 0;
+    const downPaymentAmount = downPaymentType === 'AMOUNT' ? Math.min(Math.max(downPaymentValue, 0), totalAfterDiscount) : 0;
     const change = Math.max(0, parseInt(amountPaid || '0') - totalAfterDiscount);
 
     // Reset amounts when modal opens or total changes
@@ -101,7 +109,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             setSplitNonCashAmount(0);
             setSplitNonCashMethod('QRIS');
             setNumpadTarget('CASH');
-            setPaymentView('PAY');
+            // Don't reset paymentView here - let the button click handler set it
             setIsProcessing(false); // Reset processing flag when modal opens
         } else {
             setIsProcessing(false); // Reset processing flag when modal closes
@@ -109,7 +117,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     }, [isPaymentModalOpen, totalAfterDiscount]);
 
     // Numpad target for split behavior
-    const [numpadTarget, setNumpadTarget] = useState<'CASH'|'NONCASH'|'DEFAULT'>('DEFAULT');
+    const [numpadTarget, setNumpadTarget] = useState<'CASH'|'NONCASH'|'DOWN_PAYMENT'|'DEFAULT'>('DEFAULT');
 
     // Initial hydration fix (moved after hooks to keep hook order stable)
     const [mounted, setMounted] = useState(false);
@@ -150,6 +158,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 discountAmount,
                 discountPercent,
                 totalAmount: totalAfterDiscount,
+                downPaymentPercent: downPaymentType === 'PERCENT' ? downPaymentValue : 0,
+                downPaymentAmount: downPaymentType === 'AMOUNT' ? downPaymentValue : 0,
                 customerName: customerName.trim() || undefined,
                 note: billNote.trim() || undefined,
             });
@@ -217,6 +227,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
         setCustomerName('');
         setBillNote('');
         setActiveOpenBill(null);
+        setPaymentView('PAY');
+        setDownPaymentType('AMOUNT');
+        setDownPaymentValue(0);
     };
 
     const handleVoidBill = async (bill: OpenBillListItem) => {
@@ -258,6 +271,15 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     });
 
     const handleNumpadInput = (val: string) => {
+        if (numpadTarget === 'DOWN_PAYMENT') {
+            setDownPaymentValue(prev => {
+                const prevStr = String(prev || 0);
+                if (prevStr === '0') return Number(val);
+                return Number(prevStr + val);
+            });
+            return;
+        }
+
         if (isSplitMode) {
             if (numpadTarget === 'CASH') {
                 setSplitCashAmount(prev => {
@@ -482,11 +504,24 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setIsDeleteModalOpen(true)}>
                         Delete
                     </Button>
-                    <Button className="w-full font-bold text-lg bg-emerald-600 hover:bg-emerald-700 text-white" disabled={cart.length === 0} onClick={() => setIsPaymentModalOpen(true)}>
+                    <Button 
+                        variant="outline" 
+                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                        onClick={() => {
+                            setPaymentView('OPEN_BILLS');
+                            setIsPaymentModalOpen(true);
+                        }}
+                    >
+                        Open Bills
+                    </Button>
+                    <Button className="w-full font-bold text-lg bg-emerald-600 hover:bg-emerald-700 text-white" disabled={cart.length === 0} onClick={() => {
+                        setPaymentView('PAY');
+                        setIsPaymentModalOpen(true);
+                    }}>
                         Charge
                     </Button>
                 </div>
@@ -600,6 +635,11 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                                         {bill.customerName || 'Walk-in'} • {bill.itemCount} item • {bill.cashierName}
                                                     </p>
                                                     <p className="text-xs font-medium text-emerald-700 mt-1">{formatRupiah(bill.totalAmount)}</p>
+                                                    {(bill.downPaymentPercent > 0 || bill.downPaymentAmount > 0) && (
+                                                        <p className="text-xs text-amber-600 mt-1">
+                                                            DP: {bill.downPaymentPercent > 0 ? `${bill.downPaymentPercent}%` : formatRupiah(bill.downPaymentAmount)}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-1">
                                                     <Button
@@ -660,6 +700,18 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                         <span>Discount</span>
                                         <span>- {formatRupiah(discountAmount)}</span>
                                     </div>
+                                    {(downPaymentPercent > 0 || downPaymentAmount > 0) && (
+                                        <>
+                                            <div className="flex justify-between mt-2 pt-2 border-t">
+                                                <span className="text-amber-700 font-medium">DP Received</span>
+                                                <span className="text-amber-700 font-medium">{formatRupiah(downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-amber-700 font-medium">Remaining</span>
+                                                <span className="text-amber-700 font-medium">{formatRupiah(Math.max(0, totalAfterDiscount - (downPaymentPercent > 0 ? (totalAfterDiscount * downPaymentPercent) / 100 : downPaymentAmount)))}</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -727,6 +779,50 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
                                     Applied: {formatRupiah(discountAmount)} ({discountPercent.toFixed(2)}%)
+                                </div>
+                            </div>
+
+                            <div className="flex-shrink-0 mt-3">
+                                <Label htmlFor="downPaymentValue">Down Payment (DP)</Label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={downPaymentType}
+                                        onChange={(e) => setDownPaymentType(e.target.value as 'AMOUNT' | 'PERCENT')}
+                                        className="rounded border px-2 py-1"
+                                    >
+                                        <option value="AMOUNT">Rp</option>
+                                        <option value="PERCENT">%</option>
+                                    </select>
+                                    <input
+                                        id="downPaymentValue"
+                                        type="number"
+                                        min={0}
+                                        max={downPaymentType === 'PERCENT' ? 100 : totalAfterDiscount}
+                                        step={downPaymentType === 'PERCENT' ? 0.1 : 1}
+                                        value={downPaymentValue || ''}
+                                        onFocus={() => setNumpadTarget('DOWN_PAYMENT')}
+                                        onChange={(e) => {
+                                            const val = e.target.value.trim();
+                                            if (val === '') {
+                                                setDownPaymentValue(0);
+                                            } else {
+                                                let num = Number(val);
+                                                if (downPaymentType === 'PERCENT') {
+                                                    num = Math.min(Math.max(num, 0), 100);
+                                                } else {
+                                                    num = Math.min(Math.max(num, 0), totalAfterDiscount);
+                                                }
+                                                setDownPaymentValue(num);
+                                            }
+                                        }}
+                                        className="w-full rounded border px-2 py-1"
+                                    />
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {downPaymentType === 'PERCENT'
+                                        ? `${downPaymentValue}% = ${formatRupiah((totalAfterDiscount * downPaymentValue) / 100)}`
+                                        : `Received: ${formatRupiah(downPaymentValue)} / Remaining: ${formatRupiah(Math.max(0, totalAfterDiscount - downPaymentValue))}`
+                                    }
                                 </div>
                             </div>
 
@@ -804,10 +900,12 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                         {/* Right: Numpad (Only active for Cash usually) */}
                         <div className="w-full md:w-1/2 h-full overflow-hidden">
                             <SmartNumpad
-                                value={isSplitMode ? (numpadTarget === 'CASH' ? String(splitCashAmount) : numpadTarget === 'NONCASH' ? String(splitNonCashAmount) : amountPaid) : amountPaid}
+                                value={numpadTarget === 'DOWN_PAYMENT' ? String(downPaymentValue) : (isSplitMode ? (numpadTarget === 'CASH' ? String(splitCashAmount) : numpadTarget === 'NONCASH' ? String(splitNonCashAmount) : amountPaid) : amountPaid)}
                                 onInput={handleNumpadInput}
                                 onDelete={() => {
-                                    if (isSplitMode) {
+                                    if (numpadTarget === 'DOWN_PAYMENT') {
+                                        setDownPaymentValue(prev => Math.floor((prev || 0) / 10));
+                                    } else if (isSplitMode) {
                                         if (numpadTarget === 'CASH') setSplitCashAmount(prev => Math.floor((prev || 0) / 10));
                                         else if (numpadTarget === 'NONCASH') setSplitNonCashAmount(prev => Math.floor((prev || 0) / 10));
                                         else setAmountPaid(prev => prev.slice(0, -1) || '0');
@@ -816,7 +914,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                     }
                                 }}
                                 onClear={() => {
-                                    if (isSplitMode) {
+                                    if (numpadTarget === 'DOWN_PAYMENT') {
+                                        setDownPaymentValue(0);
+                                    } else if (isSplitMode) {
                                         if (numpadTarget === 'CASH') setSplitCashAmount(0);
                                         else if (numpadTarget === 'NONCASH') setSplitNonCashAmount(0);
                                         else setAmountPaid('0');

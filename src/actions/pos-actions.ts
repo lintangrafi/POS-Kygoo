@@ -24,6 +24,8 @@ type SaveOpenBillPayload = {
     discountAmount: number;
     discountPercent: number;
     totalAmount: number;
+    downPaymentPercent?: number; // 0-100 if using percentage
+    downPaymentAmount?: number;  // Rp amount if not using percentage
     customerName?: string;
     note?: string;
 };
@@ -177,6 +179,9 @@ export async function getOpenBills() {
         discountAmount: Number(bill.discountAmount),
         discountPercent: Number(bill.discountPercent),
         totalAmount: Number(bill.totalAmount),
+        downPaymentPercent: Number(bill.downPaymentPercent),
+        downPaymentAmount: Number(bill.downPaymentAmount),
+        paidAmount: Number(bill.paidAmount),
         status: bill.status,
         itemCount: bill.items.length,
         updatedAt: bill.updatedAt.toISOString(),
@@ -209,6 +214,9 @@ export async function getOpenBillById(billId: number) {
             discountAmount: Number(bill.discountAmount),
             discountPercent: Number(bill.discountPercent),
             totalAmount: Number(bill.totalAmount),
+            downPaymentPercent: Number(bill.downPaymentPercent),
+            downPaymentAmount: Number(bill.downPaymentAmount),
+            paidAmount: Number(bill.paidAmount),
             status: bill.status,
             items: bill.items.map((item) => ({
                 productId: item.productId,
@@ -242,6 +250,8 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     discountAmount: data.discountAmount.toString(),
                     discountPercent: data.discountPercent.toString(),
                     totalAmount: data.totalAmount.toString(),
+                    downPaymentPercent: (data.downPaymentPercent || 0).toString(),
+                    downPaymentAmount: (data.downPaymentAmount || 0).toString(),
                     status: 'OPEN',
                 }).returning();
                 targetBillId = newBill.id;
@@ -254,6 +264,8 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         discountAmount: data.discountAmount.toString(),
                         discountPercent: data.discountPercent.toString(),
                         totalAmount: data.totalAmount.toString(),
+                        downPaymentPercent: (data.downPaymentPercent || 0).toString(),
+                        downPaymentAmount: (data.downPaymentAmount || 0).toString(),
                         updatedAt: new Date(),
                     })
                     .where(and(eq(openBills.id, targetBillId), inArray(openBills.status, ['OPEN', 'PARTIAL'])));

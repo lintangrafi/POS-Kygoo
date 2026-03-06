@@ -98,6 +98,8 @@ export const openBills = pgTable('open_bills', {
     discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).notNull().default('0'),
     discountPercent: decimal('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
     totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    downPaymentPercent: decimal('down_payment_percent', { precision: 5, scale: 2 }).notNull().default('0'), // % if > 0
+    downPaymentAmount: decimal('down_payment_amount', { precision: 12, scale: 2 }).notNull().default('0'), // Rp if downPaymentPercent = 0
     paidAmount: decimal('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
     status: openBillStatusEnum('status').notNull().default('OPEN'),
     createdAt: timestamp('created_at').defaultNow().notNull(),

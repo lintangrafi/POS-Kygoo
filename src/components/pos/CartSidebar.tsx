@@ -112,7 +112,6 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     // Initial hydration fix (moved after hooks to keep hook order stable)
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
-    if (!mounted) return null;
 
     const refreshOpenBills = async () => {
         setIsLoadingOpenBills(true);
@@ -417,6 +416,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             setIsProcessing(false); // Ensure flag is reset on error
         }
     };
+
+    if (!mounted) return null;
 
     return (
         <div className="flex flex-col h-full border-l bg-card/95">

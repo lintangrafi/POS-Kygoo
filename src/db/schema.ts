@@ -7,6 +7,7 @@ export const categoryTypeEnum = pgEnum('category_type', ['STUDIO', 'FB']);
 export const orderStatusEnum = pgEnum('order_status', ['COMPLETED', 'VOID']);
 export const paymentMethodEnum = pgEnum('payment_method', ['CASH', 'QRIS', 'TRANSFER']);
 export const shiftStatusEnum = pgEnum('shift_status', ['OPEN', 'CLOSED']);
+export const openBillStatusEnum = pgEnum('open_bill_status', ['OPEN', 'PARTIAL', 'CLOSED', 'VOID']);
 
 // Users Table
 export const users = pgTable('users', {
@@ -86,6 +87,35 @@ export const payments = pgTable('payments', {
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Open Bills Table (suspended transactions before final checkout)
+export const openBills = pgTable('open_bills', {
+    id: serial('id').primaryKey(),
+    billNumber: text('bill_number').notNull().unique(),
+    userId: integer('user_id').references(() => users.id).notNull(),
+    customerName: text('customer_name'),
+    note: text('note'),
+    subtotalAmount: decimal('subtotal_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    discountAmount: decimal('discount_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    discountPercent: decimal('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
+    totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    paidAmount: decimal('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+    status: openBillStatusEnum('status').notNull().default('OPEN'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    closedAt: timestamp('closed_at'),
+});
+
+// Open Bill Items (snapshot item + price while bill is suspended)
+export const openBillItems = pgTable('open_bill_items', {
+    id: serial('id').primaryKey(),
+    openBillId: integer('open_bill_id').references(() => openBills.id).notNull(),
+    productId: integer('product_id').references(() => products.id).notNull(),
+    productName: text('product_name').notNull(),
+    quantity: integer('quantity').notNull(),
+    priceAtBill: decimal('price_at_bill', { precision: 12, scale: 2 }).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Order Relations
 export const ordersRelations = relations(orders, ({ one, many }) => ({
     user: one(users, {
@@ -111,6 +141,25 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     order: one(orders, {
         fields: [payments.orderId],
         references: [orders.id],
+    }),
+}));
+
+export const openBillsRelations = relations(openBills, ({ one, many }) => ({
+    user: one(users, {
+        fields: [openBills.userId],
+        references: [users.id],
+    }),
+    items: many(openBillItems),
+}));
+
+export const openBillItemsRelations = relations(openBillItems, ({ one }) => ({
+    openBill: one(openBills, {
+        fields: [openBillItems.openBillId],
+        references: [openBills.id],
+    }),
+    product: one(products, {
+        fields: [openBillItems.productId],
+        references: [products.id],
     }),
 }));
 

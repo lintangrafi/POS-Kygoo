@@ -13,12 +13,23 @@ export interface CartItem extends Product {
     quantity: number;
 }
 
+export interface ActiveOpenBill {
+    id: number;
+    billNumber: string;
+    customerName?: string;
+    note?: string;
+}
+
 interface PosState {
     cart: CartItem[];
     addToCart: (product: Product) => void;
     removeFromCart: (productId: number) => void;
     updateQuantity: (productId: number, quantity: number) => void;
+    setCart: (items: CartItem[]) => void;
     clearCart: () => void;
+
+    activeOpenBill: ActiveOpenBill | null;
+    setActiveOpenBill: (bill: ActiveOpenBill | null) => void;
 
     selectedCategoryId: number | null;
     setSelectedCategoryId: (id: number | null) => void;
@@ -31,6 +42,7 @@ export const usePosStore = create<PosState>()(
     persist(
         (set) => ({
             cart: [],
+            activeOpenBill: null,
             selectedCategoryId: null,
             searchQuery: '',
 
@@ -63,7 +75,11 @@ export const usePosStore = create<PosState>()(
                 };
             }),
 
-            clearCart: () => set({ cart: [] }),
+            setCart: (items) => set({ cart: items }),
+
+            clearCart: () => set({ cart: [], activeOpenBill: null }),
+
+            setActiveOpenBill: (bill) => set({ activeOpenBill: bill }),
 
             setSelectedCategoryId: (id) => set({ selectedCategoryId: id }),
             setSearchQuery: (query) => set({ searchQuery: query }),

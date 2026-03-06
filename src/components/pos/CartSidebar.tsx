@@ -8,23 +8,53 @@ import { formatRupiah, cn } from '@/lib/utils';
 import { Minus, Plus, Trash2, CreditCard, Banknote, QrCode } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { SmartNumpad } from './SmartNumpad';
-import { processTransaction } from '@/actions/pos-actions';
+import { closeOpenBillAndCheckout, getOpenBillById, getOpenBills, processTransaction, saveOpenBill, voidOpenBill } from '@/actions/pos-actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast'; // We might need to create this hook if Shadcn didn't install it fully, or just use alert for now.
+import { Badge } from '@/components/ui/badge';
+
+type OpenBillListItem = {
+    id: number;
+    billNumber: string;
+    customerName: string | null;
+    note: string | null;
+    subtotalAmount: number;
+    discountAmount: number;
+    discountPercent: number;
+    totalAmount: number;
+    status: 'OPEN' | 'PARTIAL' | 'CLOSED' | 'VOID';
+    itemCount: number;
+    updatedAt: Date;
+    cashierName: string;
+};
 
 // Custom simple toast/alert since we didn't fully setup Toaster
 const notify = (msg: string) => alert(msg);
 
 export function CartSidebar() {
-    const { cart, removeFromCart, updateQuantity, clearCart } = usePosStore();
+    const {
+        cart,
+        removeFromCart,
+        updateQuantity,
+        clearCart,
+        setCart,
+        activeOpenBill,
+        setActiveOpenBill,
+    } = usePosStore();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedToDelete, setSelectedToDelete] = useState<Record<number, boolean>>({});
+    const [openBills, setOpenBills] = useState<OpenBillListItem[]>([]);
+    const [isLoadingOpenBills, setIsLoadingOpenBills] = useState(false);
+    const [isSavingOpenBill, setIsSavingOpenBill] = useState(false);
+    const [isVoidingOpenBillId, setIsVoidingOpenBillId] = useState<number | null>(null);
+    const [openBillSearch, setOpenBillSearch] = useState('');
     const [amountPaid, setAmountPaid] = useState('0');
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'TRANSFER'>('CASH');
     const [discountType, setDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
     const [discountValue, setDiscountValue] = useState<number>(0);
     const [isProcessing, setIsProcessing] = useState(false); // Prevent double submission
+    const [customerName, setCustomerName] = useState('');
+    const [billNote, setBillNote] = useState('');
 
     // Split-bill state
     const [isSplitMode, setIsSplitMode] = useState(false);
@@ -80,6 +110,150 @@ export function CartSidebar() {
     useEffect(() => setMounted(true), []);
     if (!mounted) return null;
 
+    const refreshOpenBills = async () => {
+        setIsLoadingOpenBills(true);
+        try {
+            const rows = await getOpenBills();
+            setOpenBills(rows as OpenBillListItem[]);
+        } catch (error) {
+            console.error('Failed to load open bills:', error);
+        } finally {
+            setIsLoadingOpenBills(false);
+        }
+    };
+
+    useEffect(() => {
+        refreshOpenBills();
+    }, []);
+
+    useEffect(() => {
+        if (!activeOpenBill) return;
+        setCustomerName(activeOpenBill.customerName || '');
+        setBillNote(activeOpenBill.note || '');
+    }, [activeOpenBill]);
+
+    const handleSaveOpenBill = async () => {
+        if (cart.length === 0 || isSavingOpenBill) return;
+        setIsSavingOpenBill(true);
+
+        try {
+            const result = await saveOpenBill({
+                billId: activeOpenBill?.id,
+                items: cart.map((item) => ({
+                    productId: item.id,
+                    quantity: item.quantity,
+                    price: Number(item.price),
+                    productName: item.name,
+                })),
+                subtotalAmount: subtotal,
+                discountAmount,
+                discountPercent,
+                totalAmount: totalAfterDiscount,
+                customerName: customerName.trim() || undefined,
+                note: billNote.trim() || undefined,
+            });
+
+            if (!result.success) {
+                notify(`Gagal simpan open bill: ${result.error}`);
+                return;
+            }
+
+            setActiveOpenBill({
+                id: result.billId,
+                billNumber: result.billNumber,
+                customerName: customerName.trim() || undefined,
+                note: billNote.trim() || undefined,
+            });
+            notify(`Open bill ${result.billNumber} tersimpan.`);
+            await refreshOpenBills();
+        } catch (error) {
+            console.error('Save open bill error:', error);
+            notify('Terjadi error saat menyimpan open bill.');
+        } finally {
+            setIsSavingOpenBill(false);
+        }
+    };
+
+    const handleResumeBill = async (billId: number) => {
+        const result = await getOpenBillById(billId);
+
+        if (!result.success) {
+            notify(`Gagal buka bill: ${result.error}`);
+            return;
+        }
+
+        const selectedBill = result.bill;
+        setCart(
+            selectedBill.items.map((item) => ({
+                id: item.productId,
+                name: item.productName,
+                price: item.price.toString(),
+                quantity: item.quantity,
+                stock: 99999,
+                categoryId: 0,
+            }))
+        );
+
+        setDiscountType('AMOUNT');
+        setDiscountValue(selectedBill.discountAmount);
+        setCustomerName(selectedBill.customerName || '');
+        setBillNote(selectedBill.note || '');
+        setActiveOpenBill({
+            id: selectedBill.id,
+            billNumber: selectedBill.billNumber,
+            customerName: selectedBill.customerName || undefined,
+            note: selectedBill.note || undefined,
+        });
+        notify(`Bill ${selectedBill.billNumber} dimuat ke cart.`);
+    };
+
+    const resetCurrentOrderContext = () => {
+        clearCart();
+        setDiscountValue(0);
+        setDiscountType('AMOUNT');
+        setCustomerName('');
+        setBillNote('');
+        setActiveOpenBill(null);
+    };
+
+    const handleVoidBill = async (bill: OpenBillListItem) => {
+        const confirmation = window.confirm(`Void bill ${bill.billNumber}? Tindakan ini tidak dapat dibatalkan.`);
+        if (!confirmation) return;
+
+        const reason = window.prompt('Alasan void (opsional):') || undefined;
+        setIsVoidingOpenBillId(bill.id);
+        try {
+            const result = await voidOpenBill(bill.id, reason);
+            if (!result.success) {
+                notify(`Gagal void bill: ${result.error}`);
+                return;
+            }
+
+            if (activeOpenBill?.id === bill.id) {
+                resetCurrentOrderContext();
+            }
+
+            notify(`Bill ${bill.billNumber} berhasil di-void.`);
+            await refreshOpenBills();
+        } catch (error) {
+            console.error('Void bill error:', error);
+            notify('Terjadi error saat void bill.');
+        } finally {
+            setIsVoidingOpenBillId(null);
+        }
+    };
+
+    const filteredOpenBills = openBills.filter((bill) => {
+        const query = openBillSearch.trim().toLowerCase();
+        if (!query) return true;
+
+        return (
+            bill.billNumber.toLowerCase().includes(query)
+            || (bill.customerName || '').toLowerCase().includes(query)
+            || (bill.cashierName || '').toLowerCase().includes(query)
+        );
+    });
+
     const handleNumpadInput = (val: string) => {
         if (isSplitMode) {
             if (numpadTarget === 'CASH') {
@@ -133,24 +307,34 @@ export function CartSidebar() {
                 const changeAmount = Math.max(0, sum - totalAfterDiscount);
 
                 // Processing
-                const result = await processTransaction({
-                    items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
-                    paymentMethods,
-                    subtotalAmount: subtotal,
-                    discountAmount,
-                    discountPercent,
-                    totalAmount: totalAfterDiscount,
-                });
+                const result = activeOpenBill
+                    ? await closeOpenBillAndCheckout({
+                        openBillId: activeOpenBill.id,
+                        items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
+                        paymentMethods,
+                        subtotalAmount: subtotal,
+                        discountAmount,
+                        discountPercent,
+                        totalAmount: totalAfterDiscount,
+                    })
+                    : await processTransaction({
+                        items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
+                        paymentMethods,
+                        subtotalAmount: subtotal,
+                        discountAmount,
+                        discountPercent,
+                        totalAmount: totalAfterDiscount,
+                    });
 
                 if (result.success) {
                     notify("Transaction Successful!");
-                    clearCart();
-                    setDiscountValue(0);
+                    resetCurrentOrderContext();
                     setIsPaymentModalOpen(false);
                     setAmountPaid('0');
                     setIsSplitMode(false);
                     setSplitCashAmount(0);
                     setSplitNonCashAmount(0);
+                    await refreshOpenBills();
                 } else {
                     notify("Transaction Failed: " + result.error);
                 }
@@ -167,17 +351,30 @@ export function CartSidebar() {
             }
 
             // Processing
-            const result = await processTransaction({
-                items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
-                paymentMethods: [{
-                    method: paymentMethod,
-                    amount: paymentMethod === 'CASH' ? totalAfterDiscount : totalAfterDiscount // For now assume full payment via one method or simple split later
-                }],
-                subtotalAmount: subtotal,
-                discountAmount,
-                discountPercent,
-                totalAmount: totalAfterDiscount,
-            });
+            const result = activeOpenBill
+                ? await closeOpenBillAndCheckout({
+                    openBillId: activeOpenBill.id,
+                    items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
+                    paymentMethods: [{
+                        method: paymentMethod,
+                        amount: totalAfterDiscount,
+                    }],
+                    subtotalAmount: subtotal,
+                    discountAmount,
+                    discountPercent,
+                    totalAmount: totalAfterDiscount,
+                })
+                : await processTransaction({
+                    items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
+                    paymentMethods: [{
+                        method: paymentMethod,
+                        amount: totalAfterDiscount,
+                    }],
+                    subtotalAmount: subtotal,
+                    discountAmount,
+                    discountPercent,
+                    totalAmount: totalAfterDiscount,
+                });
 
             if (result.success) {
             // Print Receipt Logic Here
@@ -205,10 +402,10 @@ export function CartSidebar() {
             console.log("PRINTING:", receiptContent);
 
             notify("Transaction Successful!");
-            clearCart();
-            setDiscountValue(0);
+            resetCurrentOrderContext();
             setIsPaymentModalOpen(false);
             setAmountPaid('0');
+            await refreshOpenBills();
         } else {
             notify("Transaction Failed: " + result.error);
         }
@@ -222,18 +419,42 @@ export function CartSidebar() {
     };
 
     return (
-        <div className="flex flex-col h-full border-l bg-card">
+        <div className="flex flex-col h-full border-l bg-card/95">
             {/* Cart Header */}
-            <div className="p-4 border-b">
-                <h2 className="font-bold text-lg">Current Order</h2>
+            <div className="p-4 border-b bg-muted/30">
+                <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-lg">Current Order</h2>
+                    {activeOpenBill ? (
+                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Open Bill: {activeOpenBill.billNumber}</Badge>
+                    ) : (
+                        <Badge variant="secondary">Walk-in</Badge>
+                    )}
+                </div>
                 <span className="text-sm text-muted-foreground">{cart.length} items</span>
+
+                <div className="mt-3 grid gap-2">
+                    <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Nama customer (opsional)"
+                        className="h-9 rounded-md border bg-background px-3 text-sm"
+                    />
+                    <input
+                        type="text"
+                        value={billNote}
+                        onChange={(e) => setBillNote(e.target.value)}
+                        placeholder="Catatan bill"
+                        className="h-9 rounded-md border bg-background px-3 text-sm"
+                    />
+                </div>
             </div>
 
             {/* Cart Items */}
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 p-4 bg-gradient-to-b from-background to-muted/10">
                 <div className="space-y-4">
                     {cart.map((item) => (
-                        <div key={item.id} className="flex justify-between items-start">
+                        <div key={item.id} className="flex justify-between items-start border rounded-lg p-2 bg-background">
                             <div className="flex-1">
                                 <div className="font-medium">{item.name}</div>
                                 <div className="text-sm text-muted-foreground">{formatRupiah(Number(item.price))}</div>
@@ -252,6 +473,60 @@ export function CartSidebar() {
                             </div>
                         </div>
                     ))}
+                </div>
+
+                <div className="mt-5 rounded-lg border bg-muted/40 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                        <h3 className="text-sm font-semibold">Open Bills</h3>
+                        <Badge variant="outline">{openBills.length}</Badge>
+                    </div>
+                    <input
+                        type="text"
+                        value={openBillSearch}
+                        onChange={(e) => setOpenBillSearch(e.target.value)}
+                        placeholder="Cari bill/customer..."
+                        className="mb-2 h-8 w-full rounded-md border bg-background px-2 text-xs"
+                    />
+                    {isLoadingOpenBills ? (
+                        <p className="text-xs text-muted-foreground">Loading open bills...</p>
+                    ) : filteredOpenBills.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Belum ada open bill aktif.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {filteredOpenBills.slice(0, 8).map((bill) => (
+                                <div key={bill.id} className={cn(
+                                    'rounded-md border p-2 bg-background',
+                                    activeOpenBill?.id === bill.id && 'border-amber-500 bg-amber-50/70'
+                                )}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-xs font-semibold">{bill.billNumber}</p>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                {bill.customerName || 'Walk-in'} • {bill.itemCount} item
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => handleResumeBill(bill.id)}>
+                                                Resume
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-7 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                                                disabled={isVoidingOpenBillId === bill.id}
+                                                onClick={() => handleVoidBill(bill)}
+                                            >
+                                                {isVoidingOpenBillId === bill.id ? 'Voiding...' : 'Void'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="mt-1 text-xs font-medium text-emerald-700">
+                                        {formatRupiah(bill.totalAmount)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </ScrollArea>
 
@@ -272,11 +547,19 @@ export function CartSidebar() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setIsDeleteModalOpen(true)}>
                         Delete
                     </Button>
-                    <Button className="w-full font-bold text-lg" disabled={cart.length === 0} onClick={() => setIsPaymentModalOpen(true)}>
+                    <Button
+                        variant="outline"
+                        className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                        disabled={cart.length === 0 || isSavingOpenBill}
+                        onClick={handleSaveOpenBill}
+                    >
+                        {isSavingOpenBill ? 'Saving...' : (activeOpenBill ? 'Update Bill' : 'Save Bill')}
+                    </Button>
+                    <Button className="w-full font-bold text-lg bg-emerald-600 hover:bg-emerald-700 text-white" disabled={cart.length === 0} onClick={() => setIsPaymentModalOpen(true)}>
                         Charge
                     </Button>
                 </div>
@@ -324,7 +607,9 @@ export function CartSidebar() {
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
                 <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
                     <DialogHeader>
-                        <DialogTitle>Payment</DialogTitle>
+                        <DialogTitle>
+                            Payment {activeOpenBill ? `• ${activeOpenBill.billNumber}` : ''}
+                        </DialogTitle>
                     </DialogHeader>
 
                     <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0 overflow-hidden">

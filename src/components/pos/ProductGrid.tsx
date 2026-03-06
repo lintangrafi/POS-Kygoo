@@ -26,13 +26,16 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
     // but we stick to monochrome mostly.
 
     return (
-        <div className="flex flex-col h-full gap-4">
+        <div className="flex flex-col h-full gap-4 rounded-xl border bg-card p-4 shadow-sm">
             {/* Header: Search & Categories */}
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                 <Button
                     variant={selectedCategoryId === null ? 'default' : 'outline'}
                     onClick={() => setSelectedCategoryId(null)}
-                    className="whitespace-nowrap"
+                    className={cn(
+                        'whitespace-nowrap',
+                        selectedCategoryId === null && 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                    )}
                 >
                     All Items
                 </Button>
@@ -41,7 +44,10 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                         key={cat.id}
                         variant={selectedCategoryId === cat.id ? 'default' : 'outline'}
                         onClick={() => setSelectedCategoryId(cat.id)}
-                        className="whitespace-nowrap"
+                        className={cn(
+                            'whitespace-nowrap',
+                            selectedCategoryId === cat.id && 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        )}
                     >
                         {cat.name}
                     </Button>
@@ -53,7 +59,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                 <Input
                     type="search"
                     placeholder="Search products..."
-                    className="pl-8"
+                    className="pl-8 border-indigo-100 focus-visible:ring-indigo-300"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -65,7 +71,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                     <Card
                         key={product.id}
                         className={cn(
-                            "cursor-pointer hover:border-black dark:hover:border-white transition-all active:scale-95",
+                            "cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/40 transition-all active:scale-95",
                             product.stock <= 0 && "opacity-50 grayscale"
                         )}
                         onClick={() => product.stock > 0 && addToCart(product)}
@@ -74,7 +80,12 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                             <div className="font-semibold leading-tight line-clamp-2">{product.name}</div>
                             <div>
                                 <div className="text-sm font-bold">{formatRupiah(Number(product.price))}</div>
-                                <div className="text-xs text-muted-foreground">Stock: {product.stock}</div>
+                                <div className={cn(
+                                    'text-xs',
+                                    product.stock <= 3 ? 'text-red-600 font-medium' : 'text-muted-foreground'
+                                )}>
+                                    Stock: {product.stock}
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

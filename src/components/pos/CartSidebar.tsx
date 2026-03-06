@@ -52,6 +52,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const [isSavingOpenBill, setIsSavingOpenBill] = useState(false);
     const [isVoidingOpenBillId, setIsVoidingOpenBillId] = useState<number | null>(null);
     const [openBillSearch, setOpenBillSearch] = useState('');
+    const [paymentView, setPaymentView] = useState<'PAY' | 'OPEN_BILLS'>('PAY');
     const [amountPaid, setAmountPaid] = useState('0');
     const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'TRANSFER'>('CASH');
     const [discountType, setDiscountType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
@@ -100,6 +101,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             setSplitNonCashAmount(0);
             setSplitNonCashMethod('QRIS');
             setNumpadTarget('CASH');
+            setPaymentView('PAY');
             setIsProcessing(false); // Reset processing flag when modal opens
         } else {
             setIsProcessing(false); // Reset processing flag when modal closes
@@ -165,6 +167,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             });
             notify(`Open bill ${result.billNumber} tersimpan.`);
             await refreshOpenBills();
+            setIsPaymentModalOpen(false);
         } catch (error) {
             console.error('Save open bill error:', error);
             notify('Terjadi error saat menyimpan open bill.');
@@ -203,6 +206,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             customerName: selectedBill.customerName || undefined,
             note: selectedBill.note || undefined,
         });
+        setPaymentView('PAY');
         notify(`Bill ${selectedBill.billNumber} dimuat ke cart.`);
     };
 
@@ -432,23 +436,6 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     )}
                 </div>
                 <span className="text-sm text-muted-foreground">{cart.length} items</span>
-
-                <div className="mt-3 grid gap-2">
-                    <input
-                        type="text"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Nama customer (opsional)"
-                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                    />
-                    <input
-                        type="text"
-                        value={billNote}
-                        onChange={(e) => setBillNote(e.target.value)}
-                        placeholder="Catatan bill"
-                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                    />
-                </div>
             </div>
 
             {/* Cart Items */}
@@ -476,59 +463,6 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     ))}
                 </div>
 
-                <div className="mt-5 rounded-lg border bg-muted/40 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold">Open Bills</h3>
-                        <Badge variant="outline">{openBills.length}</Badge>
-                    </div>
-                    <input
-                        type="text"
-                        value={openBillSearch}
-                        onChange={(e) => setOpenBillSearch(e.target.value)}
-                        placeholder="Cari bill/customer..."
-                        className="mb-2 h-8 w-full rounded-md border bg-background px-2 text-xs"
-                    />
-                    {isLoadingOpenBills ? (
-                        <p className="text-xs text-muted-foreground">Loading open bills...</p>
-                    ) : filteredOpenBills.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">Belum ada open bill aktif.</p>
-                    ) : (
-                        <div className="space-y-2">
-                            {filteredOpenBills.slice(0, 8).map((bill) => (
-                                <div key={bill.id} className={cn(
-                                    'rounded-md border p-2 bg-background',
-                                    activeOpenBill?.id === bill.id && 'border-amber-500 bg-amber-50/70'
-                                )}>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div>
-                                            <p className="text-xs font-semibold">{bill.billNumber}</p>
-                                            <p className="text-[11px] text-muted-foreground">
-                                                {bill.customerName || 'Walk-in'} • {bill.itemCount} item
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Button size="sm" variant="outline" className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => handleResumeBill(bill.id)}>
-                                                Resume
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-7 text-xs border-red-200 text-red-700 hover:bg-red-50"
-                                                disabled={isVoidingOpenBillId === bill.id}
-                                                onClick={() => handleVoidBill(bill)}
-                                            >
-                                                {isVoidingOpenBillId === bill.id ? 'Voiding...' : 'Void'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div className="mt-1 text-xs font-medium text-emerald-700">
-                                        {formatRupiah(bill.totalAmount)}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
             </ScrollArea>
 
             {/* Totals & Actions */}
@@ -548,17 +482,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                     <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setIsDeleteModalOpen(true)}>
                         Delete
-                    </Button>
-                    <Button
-                        variant="outline"
-                        className="border-amber-200 text-amber-700 hover:bg-amber-50"
-                        disabled={cart.length === 0 || isSavingOpenBill}
-                        onClick={handleSaveOpenBill}
-                    >
-                        {isSavingOpenBill ? 'Saving...' : (activeOpenBill ? 'Update Bill' : 'Save Bill')}
                     </Button>
                     <Button className="w-full font-bold text-lg bg-emerald-600 hover:bg-emerald-700 text-white" disabled={cart.length === 0} onClick={() => setIsPaymentModalOpen(true)}>
                         Charge
@@ -613,9 +539,115 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                         </DialogTitle>
                     </DialogHeader>
 
+                    <div className="grid grid-cols-3 gap-2">
+                        <Button
+                            variant={paymentView === 'PAY' ? 'default' : 'outline'}
+                            onClick={() => setPaymentView('PAY')}
+                        >
+                            Bayar
+                        </Button>
+                        <Button
+                            variant={paymentView === 'OPEN_BILLS' ? 'default' : 'outline'}
+                            onClick={async () => {
+                                setPaymentView('OPEN_BILLS');
+                                await refreshOpenBills();
+                            }}
+                        >
+                            Open Bills
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
+                            disabled={cart.length === 0 || isSavingOpenBill}
+                            onClick={handleSaveOpenBill}
+                        >
+                            {isSavingOpenBill ? 'Saving...' : (activeOpenBill ? 'Update Bill' : 'Save to Open Bill')}
+                        </Button>
+                    </div>
+
+                    {paymentView === 'OPEN_BILLS' ? (
+                        <div className="flex-1 min-h-0 overflow-y-auto rounded-md border p-3 bg-muted/20">
+                            <div className="mb-2 flex items-center justify-between">
+                                <h3 className="text-sm font-semibold">Daftar Open Bills</h3>
+                                <Badge variant="outline">{openBills.length}</Badge>
+                            </div>
+                            <input
+                                type="text"
+                                value={openBillSearch}
+                                onChange={(e) => setOpenBillSearch(e.target.value)}
+                                placeholder="Cari bill/customer..."
+                                className="mb-3 h-9 w-full rounded-md border bg-background px-3 text-sm"
+                            />
+
+                            {isLoadingOpenBills ? (
+                                <p className="text-sm text-muted-foreground">Loading open bills...</p>
+                            ) : filteredOpenBills.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Belum ada open bill aktif.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filteredOpenBills.map((bill) => (
+                                        <div
+                                            key={bill.id}
+                                            className={cn(
+                                                'rounded-md border p-3 bg-background',
+                                                activeOpenBill?.id === bill.id && 'border-amber-500 bg-amber-50/70'
+                                            )}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div>
+                                                    <p className="text-sm font-semibold">{bill.billNumber}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {bill.customerName || 'Walk-in'} • {bill.itemCount} item • {bill.cashierName}
+                                                    </p>
+                                                    <p className="text-xs font-medium text-emerald-700 mt-1">{formatRupiah(bill.totalAmount)}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                        onClick={() => handleResumeBill(bill.id)}
+                                                    >
+                                                        Gunakan
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-xs border-red-200 text-red-700 hover:bg-red-50"
+                                                        disabled={isVoidingOpenBillId === bill.id}
+                                                        onClick={() => handleVoidBill(bill)}
+                                                    >
+                                                        {isVoidingOpenBillId === bill.id ? 'Voiding...' : 'Void'}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+
                     <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 min-h-0 overflow-hidden">
                         {/* Left: Summary & Methods */}
                         <div className="w-full md:w-1/2 flex flex-col gap-4 overflow-y-auto pr-2">
+                            <div className="grid gap-2 rounded-md border p-3 bg-muted/20">
+                                <input
+                                    type="text"
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    placeholder="Nama customer (opsional)"
+                                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                                />
+                                <input
+                                    type="text"
+                                    value={billNote}
+                                    onChange={(e) => setBillNote(e.target.value)}
+                                    placeholder="Catatan bill"
+                                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                                />
+                            </div>
+
                             <div className="bg-white p-4 rounded-lg shadow-sm">
                                 <span className="block text-sm text-muted-foreground">Total Due</span>
                                 <span className="block text-4xl font-bold">{formatRupiah(totalAfterDiscount)}</span>
@@ -797,6 +829,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                             />
                         </div>
                     </div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

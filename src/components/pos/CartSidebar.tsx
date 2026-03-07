@@ -63,6 +63,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const [discountValue, setDiscountValue] = useState<number>(0);
     const [downPaymentType, setDownPaymentType] = useState<'AMOUNT' | 'PERCENT'>('AMOUNT');
     const [downPaymentValue, setDownPaymentValue] = useState<number>(0);
+    const [downPaymentMethod, setDownPaymentMethod] = useState<'CASH' | 'QRIS' | 'TRANSFER'>('CASH');
     const [isProcessing, setIsProcessing] = useState(false); // Prevent double submission
     const [customerName, setCustomerName] = useState('');
     const [billNote, setBillNote] = useState('');
@@ -161,6 +162,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 totalAmount: totalAfterDiscount,
                 downPaymentPercent: downPaymentType === 'PERCENT' ? downPaymentValue : 0,
                 downPaymentAmount: downPaymentType === 'AMOUNT' ? downPaymentValue : 0,
+                paymentMethod: downPaymentValue > 0 ? downPaymentMethod : undefined,
                 customerName: customerName.trim() || undefined,
                 note: billNote.trim() || undefined,
             });
@@ -806,6 +808,40 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                         : `Received: ${formatRupiah(downPaymentValue)} / Remaining: ${formatRupiah(Math.max(0, totalAfterDiscount - downPaymentValue))}`
                                     }
                                 </div>
+                                {downPaymentValue > 0 && (
+                                    <div className="mt-2">
+                                        <Label className="text-xs">Metode Pembayaran DP</Label>
+                                        <div className="grid grid-cols-3 gap-1 mt-1">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={downPaymentMethod === 'CASH' ? 'default' : 'outline'}
+                                                onClick={() => setDownPaymentMethod('CASH')}
+                                                className="h-8 text-xs"
+                                            >
+                                                Cash
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={downPaymentMethod === 'QRIS' ? 'default' : 'outline'}
+                                                onClick={() => setDownPaymentMethod('QRIS')}
+                                                className="h-8 text-xs"
+                                            >
+                                                QRIS
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={downPaymentMethod === 'TRANSFER' ? 'default' : 'outline'}
+                                                onClick={() => setDownPaymentMethod('TRANSFER')}
+                                                className="h-8 text-xs"
+                                            >
+                                                Transfer
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex-shrink-0 mt-3 flex gap-2">

@@ -44,24 +44,18 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
             <ScrollArea className="w-full rounded-lg border border-slate-200 bg-slate-50">
                 <div className="flex gap-2 p-2">
                     <Button
-                        variant={selectedCategoryId === null ? 'default' : 'outline'}
+                        variant='outline'
                         onClick={() => setSelectedCategoryId(null)}
-                        className={cn(
-                            'whitespace-nowrap flex-shrink-0',
-                            selectedCategoryId === null && 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                        )}
+                        className='whitespace-nowrap flex-shrink-0'
                     >
                         All Items
                     </Button>
                     {categories.map((cat) => (
                         <Button
                             key={cat.id}
-                            variant={selectedCategoryId === cat.id ? 'default' : 'outline'}
+                            variant='outline'
                             onClick={() => setSelectedCategoryId(cat.id)}
-                            className={cn(
-                                'whitespace-nowrap flex-shrink-0',
-                                selectedCategoryId === cat.id && 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                            )}
+                            className='whitespace-nowrap flex-shrink-0'
                         >
                             {cat.name}
                         </Button>

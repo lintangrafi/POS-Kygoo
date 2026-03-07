@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { categories, products, orders, orderItems, payments, auditLogs, openBills, openBillItems } from '@/db/schema';
+import { categories, products, orders, orderItems, payments, auditLogs, openBills, openBillItems, incomes } from '@/db/schema';
 import { and, desc, eq, inArray, gte, lte } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getOpenShift } from './shift-actions';
@@ -26,6 +26,7 @@ type SaveOpenBillPayload = {
     totalAmount: number;
     downPaymentPercent?: number; // 0-100 if using percentage
     downPaymentAmount?: number;  // Rp amount if not using percentage
+    paymentMethod?: PaymentMethod; // Payment method for down payment
     customerName?: string;
     note?: string;
 };
@@ -113,6 +114,31 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
             }
 
             if (openBillId) {
+                // Get the open bill to calculate remaining payment
+                const openBill = await tx.query.openBills.findFirst({
+                    where: eq(openBills.id, openBillId),
+                });
+                
+                if (openBill) {
+                    const paidAmount = Number(openBill.paidAmount || 0);
+                    const totalAmount = data.totalAmount;
+                    const remainingAmount = totalAmount - paidAmount;
+                    
+                    // Record income for remaining payment if exists
+                    if (remainingAmount > 0 && data.paymentMethods.length > 0) {
+                        const primaryPaymentMethod = data.paymentMethods[0].method;
+                        await tx.insert(incomes).values({
+                            userId: session.userId,
+                            description: `Final Payment - ${invoiceNumber} (${openBill.customerName || 'Walk-in'})`,
+                            amount: remainingAmount.toString(),
+                            category: 'OTHER',
+                            paymentMethod: primaryPaymentMethod === 'TRANSFER' ? 'QRIS' : primaryPaymentMethod,
+                            date: new Date(),
+                            notes: `Open Bill Closed: ${openBill.billNumber}`,
+                        });
+                    }
+                }
+                
                 await tx.update(openBills)
                     .set({
                         status: 'CLOSED',
@@ -246,6 +272,8 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                 // Generate new bill and draft invoice
                 const billNumber = `OB-${Date.now()}`;
                 invoiceNumber = `DRAFT-${Date.now()}`;
+                const downPayment = data.downPaymentAmount || 0;
+                
                 const [newBill] = await tx.insert(openBills).values({
                     billNumber,
                     invoiceNumber,
@@ -258,10 +286,25 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     discountPercent: data.discountPercent.toString(),
                     totalAmount: data.totalAmount.toString(),
                     downPaymentPercent: (data.downPaymentPercent || 0).toString(),
-                    downPaymentAmount: (data.downPaymentAmount || 0).toString(),
+                    downPaymentAmount: downPayment.toString(),
+                    paidAmount: downPayment.toString(),
+                    paymentMethod: data.paymentMethod || null,
                     status: 'OPEN',
                 }).returning();
                 targetBillId = newBill.id;
+                
+                // Record income for down payment if exists
+                if (downPayment > 0 && data.paymentMethod) {
+                    await tx.insert(incomes).values({
+                        userId: session.userId,
+                        description: `Down Payment - ${invoiceNumber} (${data.customerName || 'Walk-in'})`,
+                        amount: downPayment.toString(),
+                        category: 'OTHER',
+                        paymentMethod: data.paymentMethod === 'TRANSFER' ? 'QRIS' : data.paymentMethod,
+                        date: new Date(),
+                        notes: `Open Bill: ${billNumber}`,
+                    });
+                }
             } else {
                 // Get existing bill to preserve invoice number
                 const existingBill = await tx.query.openBills.findFirst({
@@ -269,6 +312,8 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                 });
                 invoiceNumber = existingBill?.invoiceNumber || `DRAFT-${Date.now()}`;
 
+                const downPayment = data.downPaymentAmount || 0;
+                
                 await tx.update(openBills)
                     .set({
                         customerName: data.customerName || null,
@@ -278,7 +323,9 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         discountPercent: data.discountPercent.toString(),
                         totalAmount: data.totalAmount.toString(),
                         downPaymentPercent: (data.downPaymentPercent || 0).toString(),
-                        downPaymentAmount: (data.downPaymentAmount || 0).toString(),
+                        downPaymentAmount: downPayment.toString(),
+                        paidAmount: downPayment.toString(),
+                        paymentMethod: data.paymentMethod || null,
                         updatedAt: new Date(),
                     })
                     .where(and(eq(openBills.id, targetBillId), inArray(openBills.status, ['OPEN', 'PARTIAL'])));
@@ -419,9 +466,15 @@ export async function getDraftInvoices(params?: { from?: Date; to?: Date }) {
             userId: bill.userId,
             userName: bill.user?.name || '-',
             itemCount: bill.items.length,
+            items: bill.items.map((item) => ({
+                productName: item.productName,
+                quantity: item.quantity,
+                price: Number(item.priceAtBill),
+            })),
             downPaymentPercent: Number(bill.downPaymentPercent),
             downPaymentAmount: Number(bill.downPaymentAmount),
             paidAmount: Number(bill.paidAmount),
+            paymentMethod: bill.paymentMethod || null,
         }));
     } catch (error) {
         console.error('Error fetching draft invoices:', error);

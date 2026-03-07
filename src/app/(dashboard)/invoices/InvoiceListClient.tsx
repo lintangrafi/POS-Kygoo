@@ -28,9 +28,11 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
     // Calculate statistics for draft invoices
     const draftStats = useMemo(() => {
         const total = drafts.reduce((sum: number, d: any) => sum + Number(d.totalAmount), 0);
+        const totalDp = drafts.reduce((sum: number, d: any) => sum + Number(d.paidAmount || 0), 0);
+        const totalRemaining = drafts.reduce((sum: number, d: any) => sum + Math.max(0, Number(d.totalAmount) - Number(d.paidAmount || 0)), 0);
         const open = drafts.filter((d: any) => d.status === 'OPEN').length;
         const partial = drafts.filter((d: any) => d.status === 'PARTIAL').length;
-        return { total, open, partial, count: drafts.length };
+        return { total, totalDp, totalRemaining, open, partial, count: drafts.length };
     }, [drafts]);
 
     async function voidOrder(id: number) {
@@ -298,10 +300,10 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Pending Amount</p>
-                                        <p className="text-xl font-bold">{formatRupiah(draftStats.total)}</p>
+                                        <p className="text-sm text-muted-foreground">Total DP Recorded</p>
+                                        <p className="text-xl font-bold text-amber-600">{formatRupiah(draftStats.totalDp)}</p>
                                     </div>
-                                    <DollarSign className="w-8 h-8 text-yellow-500" />
+                                    <DollarSign className="w-8 h-8 text-amber-500" />
                                 </div>
                             </CardContent>
                         </Card>
@@ -309,11 +311,12 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-sm text-muted-foreground">Open / Partial</p>
-                                        <p className="text-2xl font-bold">{draftStats.open + draftStats.partial}</p>
+                                        <p className="text-sm text-muted-foreground">Remaining to Pay</p>
+                                        <p className="text-xl font-bold text-red-600">{formatRupiah(draftStats.totalRemaining)}</p>
                                     </div>
-                                    <Clock className="w-8 h-8 text-blue-500" />
+                                    <Clock className="w-8 h-8 text-red-500" />
                                 </div>
+                                <div className="mt-2 text-xs text-muted-foreground">Open / Partial: {draftStats.open + draftStats.partial}</div>
                             </CardContent>
                         </Card>
                     </div>
@@ -380,10 +383,13 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                                             {formatRupiah(Number(d.totalAmount))}
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {d.downPaymentPercent > 0 ? (
-                                                                <span className="text-amber-600 font-medium">{d.downPaymentPercent}%</span>
-                                                            ) : d.downPaymentAmount > 0 ? (
-                                                                <span className="text-amber-600 font-medium">{formatRupiah(d.downPaymentAmount)}</span>
+                                                            {Number(d.paidAmount) > 0 ? (
+                                                                <div className="text-right">
+                                                                    <div className="text-amber-600 font-medium">{formatRupiah(Number(d.paidAmount))}</div>
+                                                                    {Number(d.downPaymentPercent) > 0 && (
+                                                                        <div className="text-xs text-muted-foreground">({Number(d.downPaymentPercent).toFixed(1)}%)</div>
+                                                                    )}
+                                                                </div>
                                                             ) : (
                                                                 <span className="text-muted-foreground">-</span>
                                                             )}
@@ -437,27 +443,30 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                                                             <div className="text-right space-y-2 min-w-[250px]">
                                                                                 <div className="flex justify-between items-center">
                                                                                     <span className="text-sm text-muted-foreground">Subtotal:</span>
-                                                                                    <span className="font-medium">{formatRupiah(Number(d.totalAmount) + Number(d.downPaymentAmount || 0))}</span>
+                                                                                    <span className="font-medium">{formatRupiah(Number(d.totalAmount))}</span>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center pt-2 border-t-2 border-slate-200">
                                                                                     <span className="font-semibold">Total:</span>
                                                                                     <span className="text-xl font-bold text-orange-600">{formatRupiah(Number(d.totalAmount))}</span>
                                                                                 </div>
-                                                                                {d.downPaymentPercent > 0 || d.downPaymentAmount > 0 ? (
+                                                                                {Number(d.paidAmount) > 0 ? (
                                                                                     <div className="flex justify-between items-center text-amber-600 font-medium pt-2">
-                                                                                        <span>Down Payment:</span>
-                                                                                        <span>{d.downPaymentPercent > 0 ? `${d.downPaymentPercent}%` : formatRupiah(d.downPaymentAmount)}</span>
+                                                                                        <span>Down Payment (Recorded):</span>
+                                                                                        <span>
+                                                                                            {formatRupiah(Number(d.paidAmount))}
+                                                                                            {Number(d.downPaymentPercent) > 0 ? ` (${Number(d.downPaymentPercent).toFixed(1)}%)` : ''}
+                                                                                        </span>
                                                                                     </div>
                                                                                 ) : null}
                                                                                 {Number(d.paidAmount) > 0 ? (
                                                                                     <div className="flex justify-between items-center text-green-600 font-medium">
-                                                                                        <span>Paid:</span>
+                                                                                        <span>Total Paid:</span>
                                                                                         <span>{formatRupiah(Number(d.paidAmount))}</span>
                                                                                     </div>
                                                                                 ) : null}
-                                                                                {d.totalAmount - d.paidAmount > 0 ? (
+                                                                                {Number(d.totalAmount) - Number(d.paidAmount) > 0 ? (
                                                                                     <div className="flex justify-between items-center text-red-600 font-medium">
-                                                                                        <span>Outstanding:</span>
+                                                                                        <span>Remaining to Pay:</span>
                                                                                         <span>{formatRupiah(Number(d.totalAmount) - Number(d.paidAmount))}</span>
                                                                                     </div>
                                                                                 ) : null}

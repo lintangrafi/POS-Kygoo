@@ -122,7 +122,7 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                 if (openBill) {
                     const paidAmount = Number(openBill.paidAmount || 0);
                     const totalAmount = data.totalAmount;
-                    const remainingAmount = totalAmount - paidAmount;
+                    const remainingAmount = Number(Math.max(0, totalAmount - paidAmount).toFixed(2));
                     
                     // Record income for remaining payment if exists
                     if (remainingAmount > 0 && data.paymentMethods.length > 0) {
@@ -268,11 +268,19 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
             let targetBillId = data.billId;
             let invoiceNumber: string;
 
+            // Convert DP input to nominal (supports both fixed amount and percent DP).
+            const calculatedDownPaymentByPercent = (data.downPaymentPercent || 0) > 0
+                ? (data.totalAmount * (data.downPaymentPercent || 0)) / 100
+                : 0;
+            const requestedDownPayment = (data.downPaymentAmount || 0) > 0
+                ? (data.downPaymentAmount || 0)
+                : calculatedDownPaymentByPercent;
+            const downPayment = Number(Math.min(data.totalAmount, Math.max(0, requestedDownPayment)).toFixed(2));
+
             if (!targetBillId) {
                 // Generate new bill and draft invoice
                 const billNumber = `OB-${Date.now()}`;
                 invoiceNumber = `DRAFT-${Date.now()}`;
-                const downPayment = data.downPaymentAmount || 0;
                 
                 const [newBill] = await tx.insert(openBills).values({
                     billNumber,
@@ -289,7 +297,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     downPaymentAmount: downPayment.toString(),
                     paidAmount: downPayment.toString(),
                     paymentMethod: data.paymentMethod || null,
-                    status: 'OPEN',
+                    status: downPayment > 0 ? 'PARTIAL' : 'OPEN',
                 }).returning();
                 targetBillId = newBill.id;
                 
@@ -311,8 +319,6 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     where: eq(openBills.id, targetBillId),
                 });
                 invoiceNumber = existingBill?.invoiceNumber || `DRAFT-${Date.now()}`;
-
-                const downPayment = data.downPaymentAmount || 0;
                 
                 await tx.update(openBills)
                     .set({
@@ -326,6 +332,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         downPaymentAmount: downPayment.toString(),
                         paidAmount: downPayment.toString(),
                         paymentMethod: data.paymentMethod || null,
+                        status: downPayment > 0 ? 'PARTIAL' : 'OPEN',
                         updatedAt: new Date(),
                     })
                     .where(and(eq(openBills.id, targetBillId), inArray(openBills.status, ['OPEN', 'PARTIAL'])));

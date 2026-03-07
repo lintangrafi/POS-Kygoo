@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 type OpenBillListItem = {
     id: number;
     billNumber: string;
+    invoiceNumber: string | null;
     customerName: string | null;
     note: string | null;
     subtotalAmount: number;
@@ -169,14 +170,19 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 return;
             }
 
-            setActiveOpenBill({
-                id: result.billId,
-                billNumber: result.billNumber,
-                customerName: customerName.trim() || undefined,
-                note: billNote.trim() || undefined,
-            });
-            notify(`Open bill ${result.billNumber} tersimpan.`);
+            // Show invoice number and clear state
+            notify(`Open bill ${result.billNumber} tersimpan (Invoice: ${result.invoiceNumber})`);
+            
+            // Refresh the open bills list
             await refreshOpenBills();
+            
+            // Clear active bill and cart (user dapat membuat open bill baru)
+            clearCart();
+            setActiveOpenBill(null);
+            setCustomerName('');
+            setBillNote('');
+            setDiscountValue(0);
+            setDownPaymentValue(0);
             setIsPaymentModalOpen(false);
         } catch (error) {
             console.error('Save open bill error:', error);
@@ -631,6 +637,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                             <div className="flex items-start justify-between gap-2">
                                                 <div>
                                                     <p className="text-sm font-semibold">{bill.billNumber}</p>
+                                                    {bill.invoiceNumber && (
+                                                        <p className="text-xs text-blue-600 font-medium">{bill.invoiceNumber}</p>
+                                                    )}
                                                     <p className="text-xs text-muted-foreground">
                                                         {bill.customerName || 'Walk-in'} • {bill.itemCount} item • {bill.cashierName}
                                                     </p>

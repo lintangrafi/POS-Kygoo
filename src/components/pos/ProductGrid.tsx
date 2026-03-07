@@ -3,6 +3,7 @@
 import { usePosStore, Product } from '@/store/use-pos-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn, formatRupiah } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -27,33 +28,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
 
     return (
         <div className="flex flex-col h-full gap-4 rounded-xl border bg-card p-4 shadow-sm">
-            {/* Header: Search & Categories */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                <Button
-                    variant={selectedCategoryId === null ? 'default' : 'outline'}
-                    onClick={() => setSelectedCategoryId(null)}
-                    className={cn(
-                        'whitespace-nowrap',
-                        selectedCategoryId === null && 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                    )}
-                >
-                    All Items
-                </Button>
-                {categories.map((cat) => (
-                    <Button
-                        key={cat.id}
-                        variant={selectedCategoryId === cat.id ? 'default' : 'outline'}
-                        onClick={() => setSelectedCategoryId(cat.id)}
-                        className={cn(
-                            'whitespace-nowrap',
-                            selectedCategoryId === cat.id && 'bg-indigo-600 hover:bg-indigo-700 text-white'
-                        )}
-                    >
-                        {cat.name}
-                    </Button>
-                ))}
-            </div>
-
+            {/* Header: Search */}
             <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -64,6 +39,35 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
+
+            {/* Categories: Horizontal Scroll */}
+            <ScrollArea className="w-full rounded-lg border border-slate-200 bg-slate-50">
+                <div className="flex gap-2 p-2">
+                    <Button
+                        variant={selectedCategoryId === null ? 'default' : 'outline'}
+                        onClick={() => setSelectedCategoryId(null)}
+                        className={cn(
+                            'whitespace-nowrap flex-shrink-0',
+                            selectedCategoryId === null && 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                        )}
+                    >
+                        All Items
+                    </Button>
+                    {categories.map((cat) => (
+                        <Button
+                            key={cat.id}
+                            variant={selectedCategoryId === cat.id ? 'default' : 'outline'}
+                            onClick={() => setSelectedCategoryId(cat.id)}
+                            className={cn(
+                                'whitespace-nowrap flex-shrink-0',
+                                selectedCategoryId === cat.id && 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                            )}
+                        >
+                            {cat.name}
+                        </Button>
+                    ))}
+                </div>
+            </ScrollArea>
 
             {/* Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 overflow-y-auto pr-2 pb-20">

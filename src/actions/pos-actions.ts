@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { categories, products, orders, orderItems, payments, auditLogs, openBills, openBillItems } from '@/db/schema';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, gte, lte } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getOpenShift } from './shift-actions';
 
@@ -173,6 +173,7 @@ export async function getOpenBills() {
     return rows.map((bill) => ({
         id: bill.id,
         billNumber: bill.billNumber,
+        invoiceNumber: bill.invoiceNumber,
         customerName: bill.customerName,
         note: bill.note,
         subtotalAmount: Number(bill.subtotalAmount),
@@ -208,6 +209,7 @@ export async function getOpenBillById(billId: number) {
         bill: {
             id: bill.id,
             billNumber: bill.billNumber,
+            invoiceNumber: bill.invoiceNumber,
             customerName: bill.customerName,
             note: bill.note,
             subtotalAmount: Number(bill.subtotalAmount),
@@ -238,11 +240,16 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
     try {
         const savedBill = await db.transaction(async (tx) => {
             let targetBillId = data.billId;
+            let invoiceNumber: string;
 
             if (!targetBillId) {
+                // Generate new bill and draft invoice
                 const billNumber = `OB-${Date.now()}`;
+                invoiceNumber = `DRAFT-${Date.now()}`;
                 const [newBill] = await tx.insert(openBills).values({
                     billNumber,
+                    invoiceNumber,
+                    invoiceStatus: 'DRAFT',
                     userId: session.userId,
                     customerName: data.customerName || null,
                     note: data.note || null,
@@ -256,6 +263,12 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                 }).returning();
                 targetBillId = newBill.id;
             } else {
+                // Get existing bill to preserve invoice number
+                const existingBill = await tx.query.openBills.findFirst({
+                    where: eq(openBills.id, targetBillId),
+                });
+                invoiceNumber = existingBill?.invoiceNumber || `DRAFT-${Date.now()}`;
+
                 await tx.update(openBills)
                     .set({
                         customerName: data.customerName || null,
@@ -298,6 +311,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
             entityId: savedBill.id,
             newValue: JSON.stringify({
                 billNumber: savedBill.billNumber,
+                invoiceNumber: savedBill.invoiceNumber,
                 totalAmount: data.totalAmount,
                 itemCount: data.items.length,
             }),
@@ -307,6 +321,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
             success: true,
             billId: savedBill.id,
             billNumber: savedBill.billNumber,
+            invoiceNumber: savedBill.invoiceNumber,
         };
     } catch (error) {
         console.error('Save Open Bill Error:', error);
@@ -358,5 +373,58 @@ export async function voidOpenBill(openBillId: number, reason?: string) {
     } catch (error) {
         console.error('Void Open Bill Error:', error);
         return { error: 'Failed to void open bill.' };
+    }
+}
+
+/**
+ * Get draft invoices from open bills
+ */
+export async function getDraftInvoices(params?: { from?: Date; to?: Date }) {
+    await verifySession();
+
+    try {
+        const conditions = [inArray(openBills.status, ['OPEN', 'PARTIAL'])];
+        
+        if (params?.from) {
+            conditions.push(gte(openBills.createdAt, params.from));
+        }
+        if (params?.to) {
+            conditions.push(lte(openBills.createdAt, params.to));
+        }
+
+        const rows = await db.query.openBills.findMany({
+            where: conditions.length > 1 ? and(...conditions) : conditions[0],
+            with: {
+                items: true,
+                user: {
+                    columns: {
+                        id: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: [desc(openBills.updatedAt)],
+        });
+
+        return rows.map((bill) => ({
+            id: bill.id,
+            type: 'DRAFT_INVOICE',
+            invoiceNumber: bill.invoiceNumber,
+            billNumber: bill.billNumber,
+            customerName: bill.customerName || 'Walk-in',
+            totalAmount: Number(bill.totalAmount),
+            status: bill.status,
+            createdAt: bill.createdAt.toISOString(),
+            updatedAt: bill.updatedAt.toISOString(),
+            userId: bill.userId,
+            userName: bill.user?.name || '-',
+            itemCount: bill.items.length,
+            downPaymentPercent: Number(bill.downPaymentPercent),
+            downPaymentAmount: Number(bill.downPaymentAmount),
+            paidAmount: Number(bill.paidAmount),
+        }));
+    } catch (error) {
+        console.error('Error fetching draft invoices:', error);
+        return [];
     }
 }

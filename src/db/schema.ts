@@ -91,6 +91,8 @@ export const payments = pgTable('payments', {
 export const openBills = pgTable('open_bills', {
     id: serial('id').primaryKey(),
     billNumber: text('bill_number').notNull().unique(),
+    invoiceNumber: text('invoice_number').unique(), // DRAFT-xxx for open bills, INV-xxx when converted to order
+    invoiceStatus: text('invoice_status').default('DRAFT'), // DRAFT or CONVERTED
     userId: integer('user_id').references(() => users.id).notNull(),
     customerName: text('customer_name'),
     note: text('note'),

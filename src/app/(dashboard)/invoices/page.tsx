@@ -1,4 +1,5 @@
 import { getOrders } from '@/actions/admin-actions';
+import { getDraftInvoices } from '@/actions/pos-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import InvoiceListClient from './InvoiceListClient';
 
@@ -38,12 +39,13 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
     }
 
     const orders = await getOrders({ limit: 500, from: fromDate, to: toDate });
+    const draftInvoices = await getDraftInvoices({ from: fromDate, to: toDate });
 
     return (
         <div className="p-8 space-y-6">
             <div>
                 <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-                <p className="text-muted-foreground">List of orders & invoices (Admin only)</p>
+                <p className="text-muted-foreground">Completed invoices & draft invoices from open bills</p>
             </div>
 
             <form method="get" className="flex items-end gap-4">
@@ -67,15 +69,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
                 <a title="Custom range" href={`?period=custom`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'custom' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'} transition`}>Custom</a>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>Invoices</CardTitle>
-                    <CardDescription>Filtered invoices</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <InvoiceListClient serverOrders={orders} />
-                </CardContent>
-            </Card>
+            <InvoiceListClient serverOrders={orders} draftInvoices={draftInvoices} />
         </div>
     );
 }

@@ -112,7 +112,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                 {/* Completed Invoices Tab */}
                 <TabsContent value="completed" className="space-y-6">
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
@@ -165,10 +165,11 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                     <Card>
                         <CardContent className="p-0">
                             {orders.length === 0 ? (
-                                <div className="p-8 text-center text-muted-foreground">
+                                <div className="p-6 sm:p-8 text-center text-muted-foreground">
                                     No completed invoices found
                                 </div>
                             ) : (
+                                <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-slate-50">
@@ -276,6 +277,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                         })}
                                     </TableBody>
                                 </Table>
+                                </div>
                             )}
                         </CardContent>
                     </Card>
@@ -284,7 +286,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                 {/* Draft Invoices Tab */}
                 <TabsContent value="draft" className="space-y-6">
                     {/* Draft Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="flex items-center justify-between">
@@ -325,10 +327,11 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                     <Card>
                         <CardContent className="p-0">
                             {drafts.length === 0 ? (
-                                <div className="p-8 text-center text-muted-foreground">
+                                <div className="p-6 sm:p-8 text-center text-muted-foreground">
                                     No draft invoices found
                                 </div>
                             ) : (
+                                <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-slate-50">
@@ -524,6 +527,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                         })}
                                     </TableBody>
                                 </Table>
+                                </div>
                             )}
                         </CardContent>
                     </Card>

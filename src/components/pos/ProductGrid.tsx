@@ -101,7 +101,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
             </div>
 
             {/* Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-3 sm:gap-4 overflow-y-auto pr-2 pb-20">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 overflow-y-auto pr-1 sm:pr-2 pb-20">
                 {filteredProducts.map((product) => (
                     <Card
                         key={product.id}
@@ -111,7 +111,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                         )}
                         onClick={() => product.stock > 0 && addToCart(product)}
                     >
-                        <CardContent className="p-4 flex flex-col justify-between h-[120px]">
+                        <CardContent className="p-3 sm:p-4 flex flex-col justify-between h-[100px] sm:h-[120px]">
                             <div className="font-semibold leading-tight line-clamp-2">{product.name}</div>
                             <div>
                                 <div className="text-sm font-bold">{formatRupiah(Number(product.price))}</div>

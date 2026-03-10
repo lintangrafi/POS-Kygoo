@@ -80,12 +80,12 @@ export function Sidebar({ role }: SidebarProps) {
     return (
         <>
             {/* Mobile Menu Button */}
-            <div className="lg:hidden fixed top-4 left-4 z-50">
+            <div className="lg:hidden fixed top-4 left-4 z-50 enter-fade-up">
                 <Button
                     variant="outline"
                     size="icon"
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                    className="bg-background shadow-md"
+                    className="surface-glass border-border/70 shadow-md min-h-[44px] min-w-[44px]"
                 >
                     {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </Button>
@@ -93,38 +93,54 @@ export function Sidebar({ role }: SidebarProps) {
 
             {/* Sidebar */}
             <div className={cn(
-                "fixed lg:static inset-y-0 left-0 z-40 flex flex-col h-full bg-card text-cardforeground border-r transition-all duration-300 ease-in-out",
+                "surface-glass fixed lg:static inset-y-0 left-0 z-40 flex h-full flex-col border-r border-border/65 text-card-foreground transition-all duration-300 ease-in-out",
                 isCollapsed ? "w-16" : "w-64",
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
-            <div className="p-6 flex items-center gap-2 font-bold text-xl">
-                <div className="bg-black text-white w-8 h-8 flex items-center justify-center rounded-sm transform rotate-3">K</div>
-                <span className={cn(isCollapsed ? "hidden" : "")}>Kygoo Studio</span>
+            <div className="p-5 flex items-center gap-3 border-b border-border/60">
+                <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shadow-sm">K</div>
+                <div className={cn("leading-tight", isCollapsed && "hidden")}>
+                    <p className="text-sm font-semibold">Kygoo Studio</p>
+                    <p className="text-xs text-muted-foreground">POS Console</p>
+                </div>
 
                 {/* Collapse Toggle */}
                 <div className="ml-auto hidden lg:flex">
-                    <Button variant="ghost" size="icon" onClick={() => setIsCollapsed(!isCollapsed)}>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsCollapsed(!isCollapsed)}>
                         {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                     </Button>
                 </div>
             </div>
 
-            <div className="flex-1 px-4 space-y-2">
+            <div className="px-4 pb-2 pt-3">
+                <p className={cn("px-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", isCollapsed && "hidden")}>
+                    Navigasi
+                </p>
+            </div>
+
+            <div className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-thin">
                 {filteredLinks.map((link) => {
                     const Icon = link.icon;
                     const isActive = pathname.startsWith(link.href);
 
                     return (
-                        <Link key={link.href} href={link.href} className="block">
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className="block"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                        >
                             <Button
                                 variant={isActive ? 'secondary' : 'ghost'}
                                 className={cn(
-                                    "w-full",
+                                    "h-10 w-full rounded-lg transition-all duration-200",
                                     isCollapsed ? "justify-center" : "justify-start gap-3",
-                                    isActive ? "font-semibold" : "text-muted-foreground"
+                                    isActive
+                                        ? "bg-primary/12 text-foreground font-semibold shadow-sm"
+                                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                                 )}
                             >
-                                <Icon className="w-4 h-4" />
+                                <Icon className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />
                                 <span className={cn(isCollapsed ? "hidden" : "inline")}>{link.label}</span>
                             </Button>
                         </Link>
@@ -132,9 +148,9 @@ export function Sidebar({ role }: SidebarProps) {
                 })}
             </div>
 
-            <div className="p-4 border-t">
+            <div className="p-4 border-t border-border/65">
                 <form action={logoutAction} className="flex items-center gap-3">
-                    <Button variant="outline" className={cn("w-full justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border-red-200", isCollapsed ? "justify-center" : "")}>
+                    <Button variant="outline" className={cn("w-full justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive", isCollapsed ? "justify-center" : "") }>
                         <LogOut className="w-4 h-4" />
                         <span className={cn(isCollapsed ? "hidden" : "inline")}>Sign Out</span>
                     </Button>
@@ -145,7 +161,7 @@ export function Sidebar({ role }: SidebarProps) {
         {/* Mobile Overlay */}
         {isMobileMenuOpen && (
             <div 
-                className="lg:hidden fixed inset-0 bg-black/50 z-30"
+                className="lg:hidden fixed inset-0 bg-foreground/35 backdrop-blur-[1px] z-30"
                 onClick={() => setIsMobileMenuOpen(false)}
             />
         )}

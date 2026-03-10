@@ -11,10 +11,10 @@ export default async function SettingsPage() {
     const session = await verifySession();
 
     return (
-        <div className="p-8">
+        <div className="p-4 sm:p-6 lg:p-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground">Manage your system configuration and preferences.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">Manage your system configuration and preferences.</p>
             </div>
 
             <div className="mt-8">

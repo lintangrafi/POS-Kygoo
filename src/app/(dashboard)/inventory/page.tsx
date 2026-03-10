@@ -15,13 +15,13 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     const adjustments = await getStockAdjustments({ limit: 100 });
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
-                <p className="text-muted-foreground">Manage your products and stock levels.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Inventory</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">Manage your products and stock levels.</p>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <a href="?tab=menu" className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${tab === 'menu' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'}`}>Menu (POS)</a>
                 <a href="?tab=stock" className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${tab === 'stock' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'}`}>Stock Opname</a>
             </div>
@@ -36,6 +36,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                         <ProductFormClient mode="add" />
                     </CardHeader>
                     <CardContent>
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -72,6 +73,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
             ) : (
@@ -84,6 +86,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                         <StockAdjustClient />
                     </CardHeader>
                     <CardContent>
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -108,6 +111,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     </CardContent>
                 </Card>
             )}

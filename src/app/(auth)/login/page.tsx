@@ -11,10 +11,10 @@ export default function LoginPage() {
     const [state, action, isPending] = useActionState(loginAction, null);
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-            <Card className="w-full max-w-md border-black/10 shadow-lg bg-white text-black">
+        <div className="flex min-h-[100dvh] items-center justify-center bg-background p-4">
+            <Card className="w-full max-w-md border-border/60 shadow-lg bg-card text-card-foreground">
                 <CardHeader className="text-center space-y-2">
-                    <div className="mx-auto bg-black text-white w-12 h-12 flex items-center justify-center font-bold text-xl mb-2 rounded-sm transform rotate-3">
+                    <div className="mx-auto bg-primary text-primary-foreground w-12 h-12 flex items-center justify-center font-bold text-xl mb-2 rounded-sm transform rotate-3">
                         K
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight">Kygoo Studio</CardTitle>
@@ -30,7 +30,7 @@ export default function LoginPage() {
                                 type="email"
                                 placeholder="user@kygoo.studio"
                                 required
-                                className="bg-white text-black"
+                                className="bg-card text-card-foreground"
                             />
                         </div>
                         <div className="space-y-2">
@@ -40,12 +40,12 @@ export default function LoginPage() {
                                 name="password"
                                 type="password"
                                 required
-                                className="bg-white text-black"
+                                className="bg-card text-card-foreground"
                             />
                         </div>
 
                         {state?.error && (
-                            <div className="text-sm text-red-500 font-medium text-center bg-red-50 p-2 rounded border border-red-100">
+                            <div className="text-sm text-destructive font-medium text-center bg-destructive/10 p-2 rounded border border-destructive/20">
                                 {state.error}
                             </div>
                         )}

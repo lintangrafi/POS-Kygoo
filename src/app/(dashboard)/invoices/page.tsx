@@ -42,10 +42,10 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
     const draftInvoices = await getDraftInvoices({ from: fromDate, to: toDate });
 
     return (
-        <div className="p-8 space-y-6">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
-                <p className="text-muted-foreground">Completed invoices & draft invoices from open bills</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Invoices</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">Completed invoices & draft invoices from open bills</p>
             </div>
 
             <form method="get" className="flex items-end gap-4">

@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, Sora } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const bodyFont = DM_Sans({
+    subsets: ["latin"],
+    variable: "--font-body",
+});
+
+const headingFont = Sora({
+    subsets: ["latin"],
+    variable: "--font-display",
+});
 
 export const metadata: Metadata = {
-    title: "Kygoo Studio POS",
-    description: "Professional POS System",
+    title: "Kygoo Studio POS Console",
+    description: "Operational command center for cashier, inventory, and financial tracking.",
 };
 
 export default function RootLayout({
@@ -16,7 +24,10 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body className={`${inter.className} antialiased bg-background text-foreground`}>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+            </head>
+            <body className={`${bodyFont.variable} ${headingFont.variable} antialiased bg-background text-foreground`}>
                 {children}
             </body>
         </html>

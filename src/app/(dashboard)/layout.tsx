@@ -9,10 +9,11 @@ export default async function DashboardLayout({
     const session = await verifySession();
 
     return (
-        <div className="flex h-screen w-full bg-background overflow-hidden">
+        <div className="relative flex min-h-[100dvh] w-full overflow-hidden bg-background">
+            <div className="pointer-events-none absolute inset-0 -z-0 bg-[radial-gradient(circle_at_top_right,hsla(29,86%,63%,0.11),transparent_35%),radial-gradient(circle_at_bottom_left,hsla(45,74%,65%,0.08),transparent_40%)]" />
             <Sidebar role={session.role} />
-            <main className="flex-1 overflow-auto lg:ml-0">
-                <div className="p-4 lg:p-8">
+            <main className="relative z-10 flex-1 overflow-auto lg:ml-0">
+                <div className="mx-auto w-full max-w-[1480px] p-4 pt-20 sm:p-6 sm:pt-24 lg:p-8 lg:pt-8">
                     {children}
                 </div>
             </main>

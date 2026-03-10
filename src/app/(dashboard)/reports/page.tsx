@@ -81,13 +81,13 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     const trendLabel = aggregated ? `${period} revenue` : period === 'today' ? "Today's revenue" : 'Daily revenue (custom range)';
 
     return (
-        <div className="p-8 space-y-8">
+        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-                <p className="text-muted-foreground">Financial summaries and activity reports.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Reports</h1>
+                <p className="text-sm sm:text-base text-muted-foreground">Financial summaries and activity reports.</p>
             </div>
 
-            <form method="get" className="flex items-end gap-4">
+            <form method="get" className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
                 {period === 'custom' && (
                     <>
                         <div>
@@ -105,7 +105,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </form>
 
             {/* period buttons set explicit ranges */}
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
                 {/* compute ranges relative to today */}
                 {
                     (() => {
@@ -141,7 +141,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </div>
 
             {/* Summary metrics for the selected range (always shown) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Turnover</CardTitle>
@@ -187,7 +187,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Gross Profit</CardTitle>
@@ -228,7 +228,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     <CardDescription>Breakdown of cash vs QRIS for selected period</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                         <div className="border rounded-md p-3 bg-red-50">
                             <div className="text-sm font-medium text-muted-foreground">Cash Expenses</div>
                             <div className="text-lg font-semibold text-red-600">{formatRupiah(r.expensesByMethod?.CASH || 0)}</div>
@@ -257,6 +257,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 </CardHeader>
                 <CardContent>
                     {dailyCashflow && dailyCashflow.length > 0 ? (
+                        <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -297,6 +298,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                                 ))}
                             </TableBody>
                         </Table>
+                        </div>
                     ) : (
                         <div className="text-center py-8 text-muted-foreground">
                             No financial data for selected period
@@ -433,7 +435,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>Top Products</CardTitle>

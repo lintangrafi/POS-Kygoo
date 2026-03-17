@@ -95,7 +95,7 @@ export function Sidebar({ role }: SidebarProps) {
 
             {/* Sidebar */}
             <div className={cn(
-                "fixed lg:static inset-y-0 left-0 z-40 flex h-full flex-col border-r border-[#2A2926] bg-[#1B1A18] text-[#F3EEE3] transition-all duration-300 ease-in-out",
+                "fixed lg:static inset-y-0 left-0 z-40 flex h-screen max-h-screen flex-col border-r border-[#2A2926] bg-[#1B1A18] text-[#F3EEE3] transition-all duration-300 ease-in-out overflow-y-auto",
                 isCollapsed ? "w-16" : "w-64",
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
@@ -120,7 +120,7 @@ export function Sidebar({ role }: SidebarProps) {
                 </p>
             </div>
 
-            <div className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-thin">
+            <div className="flex-1 px-3 space-y-1.5">
                 {filteredLinks.map((link) => {
                     const Icon = link.icon;
                     const isActive = isLinkActive(link.href);

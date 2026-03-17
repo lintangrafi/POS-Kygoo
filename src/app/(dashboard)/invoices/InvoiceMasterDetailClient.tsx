@@ -68,8 +68,8 @@ export default function InvoiceMasterDetailClient({
         }, {});
     }, [selectedOrder]);
 
-    const formatDayTime = (dateStr: string) => {
-        const date = new Date(dateStr);
+    const formatDayTime = (dateStr: string | Date) => {
+        const date = dateStr instanceof Date ? dateStr : new Date(dateStr);
         const dayLabel = date.toLocaleDateString('id-ID', { weekday: 'short' });
         const dateLabel = date.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' });
         const timeLabel = date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });

@@ -8,7 +8,7 @@ type InvoiceOrder = {
     id: number;
     invoiceNumber: string;
     status: string;
-    createdAt: string;
+    createdAt: string | Date;
     subtotalAmount?: number;
     discountAmount?: number;
     totalAmount?: number;

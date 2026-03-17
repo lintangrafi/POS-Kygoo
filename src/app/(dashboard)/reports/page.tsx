@@ -389,7 +389,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     <Card>
                         <CardHeader>
                             <CardTitle>Daily Cashflow</CardTitle>
-                            <CardDescription>Ringkasan cash & QRIS per hari.</CardDescription>
+                            <CardDescription>Rincian cashflow harian per metode pembayaran.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {dailyCashflow.length === 0 ? (
@@ -400,18 +400,28 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                                         <TableRow>
                                             <TableHead>Date</TableHead>
                                             <TableHead className="text-right">Cash In</TableHead>
+                                            <TableHead className="text-right">Cash Expenses</TableHead>
+                                            <TableHead className="text-right">Cash Additional</TableHead>
+                                            <TableHead className="text-right">Net Cash</TableHead>
                                             <TableHead className="text-right">QRIS In</TableHead>
-                                            <TableHead className="text-right">Expenses</TableHead>
-                                            <TableHead className="text-right">Net</TableHead>
+                                            <TableHead className="text-right">QRIS Expenses</TableHead>
+                                            <TableHead className="text-right">QRIS Additional</TableHead>
+                                            <TableHead className="text-right">Net QRIS</TableHead>
+                                            <TableHead className="text-right">Net Daily</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {dailyCashflow.slice(-8).map((row: any) => (
                                             <TableRow key={row.date}>
                                                 <TableCell className="font-medium">{row.date}</TableCell>
-                                                <TableCell className="text-right">{formatRupiah(row.cashIncome + row.cashAdditional)}</TableCell>
-                                                <TableCell className="text-right">{formatRupiah(row.qrisIncome + row.qrisAdditional)}</TableCell>
-                                                <TableCell className="text-right">{formatRupiah(row.cashExpenses + row.qrisExpenses)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.cashIncome)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.cashExpenses)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.cashAdditional)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.netCash)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.qrisIncome)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.qrisExpenses)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.qrisAdditional)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.netQris)}</TableCell>
                                                 <TableCell className="text-right">{formatRupiah(row.netDailyIncome)}</TableCell>
                                             </TableRow>
                                         ))}

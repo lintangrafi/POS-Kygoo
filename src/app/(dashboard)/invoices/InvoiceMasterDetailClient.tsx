@@ -9,9 +9,9 @@ type InvoiceOrder = {
     invoiceNumber: string;
     status: string;
     createdAt: string | Date;
-    subtotalAmount?: number;
-    discountAmount?: number;
-    totalAmount?: number;
+    subtotalAmount?: number | string;
+    discountAmount?: number | string;
+    totalAmount?: number | string;
     payments?: { method?: string; amount?: number | string }[];
     user?: { name?: string } | null;
     items?: {

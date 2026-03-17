@@ -15,106 +15,87 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     const adjustments = await getStockAdjustments({ limit: 100 });
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
-            <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Inventory</h1>
-                <p className="text-sm sm:text-base text-muted-foreground">Manage your products and stock levels.</p>
+        <div className="rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4 sm:p-6 lg:p-8 space-y-6">
+            <div className="flex items-start justify-between gap-4 rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
+                <div>
+                    <h1 className="text-4xl font-bold tracking-tight text-[#1F1D1A]">Inventory</h1>
+                    <p className="mt-1 text-sm text-[#6F6659]">Kelola produk, kategori, dan stok adjustment dengan lane data yang rapi.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <a href="?tab=menu" className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm ${tab === 'menu' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Menu</a>
+                    <a href="?tab=stock" className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-sm ${tab === 'stock' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Stock Opname</a>
+                    <ProductFormClient mode="add" />
+                </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-                <a href="?tab=menu" className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${tab === 'menu' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'}`}>Menu (POS)</a>
-                <a href="?tab=stock" className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${tab === 'stock' ? 'bg-primary text-white border-primary' : 'bg-white hover:bg-slate-100'}`}>Stock Opname</a>
-            </div>
-
-            {tab === 'menu' ? (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Menu Items</CardTitle>
-                            <CardDescription>Products shown in POS (Menu).</CardDescription>
-                        </div>
-                        <ProductFormClient mode="add" />
-                    </CardHeader>
-                    <CardContent>
+            <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+                <Card className="border-[#E6DED0] bg-white">
+                    <CardContent className="p-4">
                         <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Product Name</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Price</TableHead>
-                                    <TableHead>Cost (HPP)</TableHead>
-                                    <TableHead>Stock</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {menuItems.map((product: any) => (
-                                    <TableRow key={`menu-item-${product.id}`}>
-                                        <TableCell className="font-medium">{product.name}</TableCell>
-                                        <TableCell>{product.category?.name}</TableCell>
-                                        <TableCell>{formatRupiah(Number(product.price))}</TableCell>
-                                        <TableCell>{formatRupiah(Number(product.costPrice))}</TableCell>
-                                        <TableCell>
-                                            <span className={product.stock <= 10 ? "text-red-500 font-bold" : ""}>
-                                                {product.stock}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-2">
-                                                <ProductFormClient product={product} mode="edit" />
-                                                <ToggleMenuItemButton
-                                                    productId={product.id}
-                                                    currentStatus={product.isMenuItem}
-                                                    productName={product.name}
-                                                />
-                                            </div>
-                                        </TableCell>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Product</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Price</TableHead>
+                                        <TableHead>Stock</TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {menuItems.slice(0, 12).map((product: any) => (
+                                        <TableRow key={`menu-item-${product.id}`}>
+                                            <TableCell className="font-medium">{product.name}</TableCell>
+                                            <TableCell>{product.category?.name || '-'}</TableCell>
+                                            <TableCell>{formatRupiah(Number(product.price))}</TableCell>
+                                            <TableCell>{product.stock}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="border-[#DCCFBF] bg-[#F8F3EA] text-[#5A5348]">
+                                                    {product.stock <= 10 ? 'Low' : product.isMenuItem ? 'Menu' : 'Stock'}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="inline-flex gap-2">
+                                                    <ProductFormClient product={product} mode="edit" />
+                                                    <ToggleMenuItemButton
+                                                        productId={product.id}
+                                                        currentStatus={product.isMenuItem}
+                                                        productName={product.name}
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
                     </CardContent>
                 </Card>
-            ) : (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>Stock Adjustments</CardTitle>
-                            <CardDescription>History of stock opname and manual adjustments.</CardDescription>
-                        </div>
+
+                <Card className="border-[#E6DED0] bg-white">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-3xl leading-none">Stock Adjustment</CardTitle>
+                        <CardDescription>Lakukan penyesuaian stok secara cepat.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
                         <StockAdjustClient />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Time</TableHead>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>User</TableHead>
-                                    <TableHead>Change</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Reason</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {adjustments.map((a: any) => (
-                                    <TableRow key={`adjustment-${a.id}`}>
-                                        <TableCell>{new Date(a.createdAt).toLocaleString()}</TableCell>
-                                        <TableCell>{a.product?.name || 'Unknown'}</TableCell>
-                                        <TableCell>{a.user?.name || 'Unknown'}</TableCell>
-                                        <TableCell className={a.change < 0 ? 'text-red-500' : 'text-green-600'}>{a.change}</TableCell>
-                                        <TableCell>{a.type}</TableCell>
-                                        <TableCell>{a.reason}</TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        <div className="space-y-2">
+                            {adjustments.slice(0, 6).map((a: any) => (
+                                <div key={`adjustment-${a.id}`} className="rounded-lg border border-[#E6DED0] bg-[#FCFAF6] px-3 py-2 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-medium text-[#1F1D1A]">{a.product?.name || 'Unknown'}</span>
+                                        <span className={a.change < 0 ? 'text-[#B6452C] font-semibold' : 'text-[#1D7A45] font-semibold'}>
+                                            {a.change > 0 ? '+' : ''}{a.change}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-[#6F6659]">{new Date(a.createdAt).toLocaleString()}</p>
+                                </div>
+                            ))}
                         </div>
                     </CardContent>
                 </Card>
-            )}
+            </div>
         </div>
     );
 }

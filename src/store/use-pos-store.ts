@@ -18,6 +18,9 @@ export interface ActiveOpenBill {
     billNumber: string;
     customerName?: string;
     note?: string;
+    paidAmount?: number;
+    downPaymentAmount?: number;
+    totalAmount?: number;
 }
 
 interface PosState {

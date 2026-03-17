@@ -2,7 +2,7 @@
 
 import { db } from '@/db';
 import { categories, products, orders, orderItems, payments, auditLogs, openBills, openBillItems, incomes } from '@/db/schema';
-import { and, desc, eq, inArray, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, gte, lte, lt } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getOpenShift } from './shift-actions';
 
@@ -114,35 +114,11 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
             }
 
             if (openBillId) {
-                // Get the open bill to calculate remaining payment
-                const openBill = await tx.query.openBills.findFirst({
-                    where: eq(openBills.id, openBillId),
-                });
-                
-                if (openBill) {
-                    const paidAmount = Number(openBill.paidAmount || 0);
-                    const totalAmount = data.totalAmount;
-                    const remainingAmount = Number(Math.max(0, totalAmount - paidAmount).toFixed(2));
-                    
-                    // Record income for remaining payment if exists
-                    if (remainingAmount > 0 && data.paymentMethods.length > 0) {
-                        const primaryPaymentMethod = data.paymentMethods[0].method;
-                        await tx.insert(incomes).values({
-                            userId: session.userId,
-                            description: `Final Payment - ${invoiceNumber} (${openBill.customerName || 'Walk-in'})`,
-                            amount: remainingAmount.toString(),
-                            category: 'OTHER',
-                            paymentMethod: primaryPaymentMethod === 'TRANSFER' ? 'QRIS' : primaryPaymentMethod,
-                            date: new Date(),
-                            notes: `Open Bill Closed: ${openBill.billNumber}`,
-                        });
-                    }
-                }
-                
                 await tx.update(openBills)
                     .set({
                         status: 'CLOSED',
                         paidAmount: data.totalAmount.toString(),
+                        invoiceStatus: 'CONVERTED',
                         closedAt: new Date(),
                         updatedAt: new Date(),
                     })
@@ -170,6 +146,9 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
         return {
             success: true,
             orderId: result.id,
+            invoiceNumber,
+            totalAmount: data.totalAmount,
+            paymentMethods: data.paymentMethods,
             invoiceAndDate: `${invoiceNumber} - ${new Date().toLocaleString()}`,
         };
 
@@ -177,6 +156,49 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
         console.error('Transaction Error:', error);
         return { error: 'Transaction failed.' };
     }
+}
+
+async function createDownPaymentInvoice(tx: any, params: {
+    billNumber: string;
+    customerName?: string | null;
+    subtotalAmount: number;
+    discountAmount: number;
+    discountPercent: number;
+    downPayment: number;
+    paymentMethod: PaymentMethod;
+    userId: number;
+}) {
+    const invoiceNumber = params.billNumber; // OB-xxxx
+
+    const [newOrder] = await tx.insert(orders).values({
+        invoiceNumber,
+        userId: params.userId,
+        subtotalAmount: params.subtotalAmount.toString(),
+        discountAmount: params.discountAmount.toString(),
+        discountPercent: params.discountPercent.toString(),
+        totalAmount: params.downPayment.toString(),
+        status: 'COMPLETED',
+    }).returning();
+
+    await tx.insert(payments).values({
+        orderId: newOrder.id,
+        method: params.paymentMethod,
+        amount: params.downPayment.toString(),
+    });
+
+    await tx.insert(auditLogs).values({
+        userId: params.userId,
+        action: 'CREATE_DP_INVOICE',
+        entity: 'ORDER',
+        entityId: newOrder.id,
+        newValue: JSON.stringify({
+            invoice: invoiceNumber,
+            downPayment: params.downPayment,
+            billNumber: params.billNumber,
+        }),
+    });
+
+    return newOrder;
 }
 
 export async function getOpenBills() {
@@ -256,6 +278,85 @@ export async function getOpenBillById(billId: number) {
     };
 }
 
+export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
+    await verifySession();
+
+    const bill = await db.query.openBills.findFirst({
+        where: eq(openBills.invoiceNumber, invoiceNumber),
+        with: { items: true },
+    });
+
+    if (!bill) return null;
+
+    return {
+        id: bill.id,
+        billNumber: bill.billNumber,
+        invoiceNumber: bill.invoiceNumber,
+        customerName: bill.customerName,
+        note: bill.note,
+        subtotalAmount: Number(bill.subtotalAmount),
+        discountAmount: Number(bill.discountAmount),
+        discountPercent: Number(bill.discountPercent),
+        totalAmount: Number(bill.totalAmount),
+        downPaymentPercent: Number(bill.downPaymentPercent),
+        downPaymentAmount: Number(bill.downPaymentAmount),
+        paidAmount: Number(bill.paidAmount),
+        status: bill.status,
+        items: bill.items.map((item) => ({
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            price: Number(item.priceAtBill),
+        })),
+    };
+}
+
+export async function getOpenBillByOrderId(orderId: number) {
+    await verifySession();
+
+    const log = await db.query.auditLogs.findFirst({
+        where: and(eq(auditLogs.entity, 'ORDER'), eq(auditLogs.entityId, orderId)),
+        orderBy: [desc(auditLogs.timestamp)],
+    });
+
+    if (!log?.newValue) return null;
+
+    try {
+        const parsed = JSON.parse(log.newValue);
+        if (!parsed?.openBillId) return null;
+        const result = await getOpenBillById(parsed.openBillId);
+        if (!result?.success) return null;
+        return result.bill;
+    } catch {
+        return null;
+    }
+}
+
+export async function getOpenBillsByRange(params: { from: Date; to: Date }) {
+    await verifySession();
+
+    const rows = await db.query.openBills.findMany({
+        where: and(gte(openBills.createdAt, params.from), lt(openBills.createdAt, params.to)),
+        with: { items: true },
+        orderBy: [desc(openBills.createdAt)],
+    });
+
+    return rows
+        .filter((bill) => !!bill.invoiceNumber)
+        .map((bill) => ({
+            invoiceNumber: bill.invoiceNumber as string,
+            billNumber: bill.billNumber,
+            totalAmount: Number(bill.totalAmount),
+            paidAmount: Number(bill.paidAmount),
+            items: bill.items.map((item) => ({
+                productId: item.productId,
+                productName: item.productName,
+                quantity: item.quantity,
+                price: Number(item.priceAtBill),
+            })),
+        }));
+}
+
 export async function saveOpenBill(data: SaveOpenBillPayload) {
     const session = await verifySession();
 
@@ -280,12 +381,12 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
             if (!targetBillId) {
                 // Generate new bill and draft invoice
                 const billNumber = `OB-${Date.now()}`;
-                invoiceNumber = `DRAFT-${Date.now()}`;
+                invoiceNumber = billNumber;
                 
                 const [newBill] = await tx.insert(openBills).values({
                     billNumber,
                     invoiceNumber,
-                    invoiceStatus: 'DRAFT',
+                    invoiceStatus: downPayment > 0 ? 'DP' : 'DRAFT',
                     userId: session.userId,
                     customerName: data.customerName || null,
                     note: data.note || null,
@@ -300,17 +401,17 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     status: downPayment > 0 ? 'PARTIAL' : 'OPEN',
                 }).returning();
                 targetBillId = newBill.id;
-                
-                // Record income for down payment if exists
+
                 if (downPayment > 0 && data.paymentMethod) {
-                    await tx.insert(incomes).values({
+                    await createDownPaymentInvoice(tx, {
+                        billNumber,
+                        customerName: data.customerName || null,
+                        subtotalAmount: data.subtotalAmount,
+                        discountAmount: data.discountAmount,
+                        discountPercent: data.discountPercent,
+                        downPayment,
+                        paymentMethod: data.paymentMethod,
                         userId: session.userId,
-                        description: `Down Payment - ${invoiceNumber} (${data.customerName || 'Walk-in'})`,
-                        amount: downPayment.toString(),
-                        category: 'OTHER',
-                        paymentMethod: data.paymentMethod === 'TRANSFER' ? 'QRIS' : data.paymentMethod,
-                        date: new Date(),
-                        notes: `Open Bill: ${billNumber}`,
                     });
                 }
             } else {
@@ -319,6 +420,13 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     where: eq(openBills.id, targetBillId),
                 });
                 invoiceNumber = existingBill?.invoiceNumber || `DRAFT-${Date.now()}`;
+                const existingPaidAmount = Number(existingBill?.paidAmount || 0);
+                if (existingPaidAmount > 0 && downPayment > existingPaidAmount) {
+                    throw new Error('Down payment sudah tercatat. Tidak bisa menambahkan DP kedua pada open bill yang sama.');
+                }
+
+                const finalDownPayment = Math.max(existingPaidAmount, downPayment);
+                const delta = Number(Math.max(0, finalDownPayment - existingPaidAmount).toFixed(2));
                 
                 await tx.update(openBills)
                     .set({
@@ -329,15 +437,28 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         discountPercent: data.discountPercent.toString(),
                         totalAmount: data.totalAmount.toString(),
                         downPaymentPercent: (data.downPaymentPercent || 0).toString(),
-                        downPaymentAmount: downPayment.toString(),
-                        paidAmount: downPayment.toString(),
+                        downPaymentAmount: finalDownPayment.toString(),
+                        paidAmount: finalDownPayment.toString(),
                         paymentMethod: data.paymentMethod || null,
-                        status: downPayment > 0 ? 'PARTIAL' : 'OPEN',
+                        status: finalDownPayment > 0 ? 'PARTIAL' : 'OPEN',
                         updatedAt: new Date(),
                     })
                     .where(and(eq(openBills.id, targetBillId), inArray(openBills.status, ['OPEN', 'PARTIAL'])));
 
                 await tx.delete(openBillItems).where(eq(openBillItems.openBillId, targetBillId));
+
+                if (delta > 0 && data.paymentMethod) {
+                    await createDownPaymentInvoice(tx, {
+                        billNumber: `OB-${Date.now()}`,
+                        customerName: data.customerName || null,
+                        subtotalAmount: data.subtotalAmount,
+                        discountAmount: data.discountAmount,
+                        discountPercent: data.discountPercent,
+                        downPayment: delta,
+                        paymentMethod: data.paymentMethod,
+                        userId: session.userId,
+                    });
+                }
             }
 
             await tx.insert(openBillItems).values(

@@ -41,13 +41,13 @@ export function Sidebar({ role }: SidebarProps) {
             href: '/pos',
             label: 'Point of Sale',
             icon: ShoppingCart,
-            roles: ['CASHIER', 'SUPERADMIN'],
+            roles: ['CASHIER', 'ADMIN', 'SUPERADMIN'],
         },
         {
             href: '/shift',
             label: 'Shift Management',
             icon: History,
-            roles: ['CASHIER', 'SUPERADMIN'],
+            roles: ['CASHIER', 'ADMIN', 'SUPERADMIN'],
         },
         {
             href: '/inventory',
@@ -77,6 +77,8 @@ export function Sidebar({ role }: SidebarProps) {
 
     const filteredLinks = links.filter((link) => link.roles.includes(role));
 
+    const isLinkActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
     return (
         <>
             {/* Mobile Menu Button */}
@@ -93,27 +95,27 @@ export function Sidebar({ role }: SidebarProps) {
 
             {/* Sidebar */}
             <div className={cn(
-                "surface-glass fixed lg:static inset-y-0 left-0 z-40 flex h-full flex-col border-r border-border/65 text-card-foreground transition-all duration-300 ease-in-out",
+                "fixed lg:static inset-y-0 left-0 z-40 flex h-full flex-col border-r border-[#2A2926] bg-[#1B1A18] text-[#F3EEE3] transition-all duration-300 ease-in-out",
                 isCollapsed ? "w-16" : "w-64",
                 isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             )}>
-            <div className="p-5 flex items-center gap-3 border-b border-border/60">
-                <div className="h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shadow-sm">K</div>
+            <div className="p-5 flex items-center gap-3 border-b border-[#2F2D2A]">
+                <div className="h-8 w-8 rounded-lg bg-[#C86B2A] text-white flex items-center justify-center text-sm font-bold shadow-sm">K</div>
                 <div className={cn("leading-tight", isCollapsed && "hidden")}>
-                    <p className="text-sm font-semibold">Kygoo Studio</p>
-                    <p className="text-xs text-muted-foreground">POS Console</p>
+                    <p className="text-sm font-semibold text-[#F7F2E9]">Kygoo Studio</p>
+                    <p className="text-xs text-[#B8B0A3]">POS Console</p>
                 </div>
 
                 {/* Collapse Toggle */}
                 <div className="ml-auto hidden lg:flex">
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" onClick={() => setIsCollapsed(!isCollapsed)}>
+                    <Button variant="ghost" size="icon" className="text-[#B8B0A3] hover:text-[#F7F2E9] hover:bg-[#2A2825]" onClick={() => setIsCollapsed(!isCollapsed)}>
                         {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
                     </Button>
                 </div>
             </div>
 
             <div className="px-4 pb-2 pt-3">
-                <p className={cn("px-2 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground", isCollapsed && "hidden")}>
+                <p className={cn("px-2 text-xs font-medium uppercase tracking-[0.14em] text-[#B8B0A3]", isCollapsed && "hidden")}>
                     Navigasi
                 </p>
             </div>
@@ -121,7 +123,7 @@ export function Sidebar({ role }: SidebarProps) {
             <div className="flex-1 px-3 space-y-1.5 overflow-y-auto scrollbar-thin">
                 {filteredLinks.map((link) => {
                     const Icon = link.icon;
-                    const isActive = pathname.startsWith(link.href);
+                    const isActive = isLinkActive(link.href);
 
                     return (
                         <Link
@@ -136,11 +138,11 @@ export function Sidebar({ role }: SidebarProps) {
                                     "h-10 w-full rounded-lg transition-all duration-200",
                                     isCollapsed ? "justify-center" : "justify-start gap-3",
                                     isActive
-                                        ? "bg-primary/12 text-foreground font-semibold shadow-sm"
-                                        : "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+                                        ? "bg-[#2A2825] text-[#F7F2E9] font-semibold shadow-sm"
+                                        : "text-[#CEC6B7] hover:bg-[#242321] hover:text-[#F7F2E9]"
                                 )}
                             >
-                                <Icon className={cn("w-4 h-4", isActive ? "text-primary" : "text-muted-foreground")} />
+                                <Icon className={cn("w-4 h-4", isActive ? "text-[#C86B2A]" : "text-[#B8B0A3]")} />
                                 <span className={cn(isCollapsed ? "hidden" : "inline")}>{link.label}</span>
                             </Button>
                         </Link>
@@ -148,9 +150,9 @@ export function Sidebar({ role }: SidebarProps) {
                 })}
             </div>
 
-            <div className="p-4 border-t border-border/65">
+            <div className="p-4 border-t border-[#2F2D2A]">
                 <form action={logoutAction} className="flex items-center gap-3">
-                    <Button variant="outline" className={cn("w-full justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive", isCollapsed ? "justify-center" : "") }>
+                    <Button variant="outline" className={cn("w-full justify-start gap-3 border-[#3A3834] bg-transparent text-[#E6B2B2] hover:bg-[#2A2825] hover:text-[#F2CACA]", isCollapsed ? "justify-center" : "") }>
                         <LogOut className="w-4 h-4" />
                         <span className={cn(isCollapsed ? "hidden" : "inline")}>Sign Out</span>
                     </Button>

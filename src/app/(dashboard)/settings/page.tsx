@@ -1,25 +1,43 @@
 import { verifySession } from '@/lib/auth';
+import { getUsers } from '@/actions/admin-actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Users, Database, Shield, Bell } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Settings, Users, Database, Bell } from 'lucide-react';
+
+const ROLE_BADGE: Record<string, string> = {
+    SUPERADMIN: 'bg-[#F3ECFF] border border-[#D9C7FF] text-[#5A2FA0]',
+    ADMIN: 'bg-[#EAF1FF] border border-[#C4D6FF] text-[#1D4E9E]',
+    CASHIER: 'bg-[#EAF7EF] border border-[#BFE7CB] text-[#17663A]',
+};
+
+const ROLE_LABEL: Record<string, string> = {
+    SUPERADMIN: 'Super Admin',
+    ADMIN: 'Admin',
+    CASHIER: 'Cashier',
+};
 
 export default async function SettingsPage() {
     const session = await verifySession();
+    const userList = session.role === 'SUPERADMIN' || session.role === 'ADMIN'
+        ? await getUsers().catch(() => [])
+        : [];
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
-            <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-sm sm:text-base text-muted-foreground">Manage your system configuration and preferences.</p>
-            </div>
+        <div className="min-h-screen bg-[#F5F1E8]">
+            <div className="p-6 sm:p-8 lg:p-10 max-w-7xl mx-auto w-full space-y-8">
+                <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#C86B2A]">Konfigurasi</p>
+                    <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mt-2">Settings</h1>
+                    <p className="mt-2 text-sm text-gray-600">Kelola konfigurasi sistem dan preferensi aplikasi Anda.</p>
+                </div>
 
-            <div className="mt-8">
                 <Tabs defaultValue="general" className="space-y-6">
-                    <TabsList>
+                    <TabsList className="bg-white border border-[#E6DED0]">
                         <TabsTrigger value="general">General</TabsTrigger>
                         <TabsTrigger value="users">Users</TabsTrigger>
                         <TabsTrigger value="system">System</TabsTrigger>
@@ -27,18 +45,18 @@ export default async function SettingsPage() {
                     </TabsList>
 
                     <TabsContent value="general">
-                        <Card>
+                        <Card className="border-[#E6DED0] bg-white">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Settings className="h-5 w-5" />
+                                    <Settings className="h-5 w-5 text-[#C86B2A]" />
                                     General Settings
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-gray-600">
                                     Basic configuration for your POS system
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <CardContent className="space-y-6">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <Label htmlFor="storeName">Store Name</Label>
                                         <Input id="storeName" defaultValue="Kygoo Studio" />
@@ -62,55 +80,92 @@ export default async function SettingsPage() {
                     </TabsContent>
 
                     <TabsContent value="users">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Users className="h-5 w-5" />
-                                    User Management
-                                </CardTitle>
-                                <CardDescription>
-                                    Manage user accounts and permissions
-                                </CardDescription>
+                        <Card className="border-[#E6DED0] bg-white">
+                            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Users className="h-5 w-5 text-[#C86B2A]" />
+                                        User Management
+                                    </CardTitle>
+                                    <CardDescription className="text-gray-600">
+                                        {userList.length} registered user{userList.length !== 1 ? 's' : ''}
+                                    </CardDescription>
+                                </div>
                             </CardHeader>
-                            <CardContent>
-                                <p className="text-muted-foreground">User management features coming soon...</p>
-                                <Button variant="outline" className="mt-4">
-                                    Add New User
-                                </Button>
+                            <CardContent className="p-0">
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-[#FAFAF9]">
+                                                <TableHead className="font-semibold text-gray-900">Name</TableHead>
+                                                <TableHead className="font-semibold text-gray-900">Email</TableHead>
+                                                <TableHead className="font-semibold text-gray-900">Role</TableHead>
+                                                <TableHead className="font-semibold text-gray-900">Joined</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {userList.map((u: any) => (
+                                                <TableRow key={u.id} className="hover:bg-[#FAFAF9]">
+                                                    <TableCell className="font-medium text-gray-900">{u.name}</TableCell>
+                                                    <TableCell className="text-sm text-gray-600">{u.email}</TableCell>
+                                                    <TableCell>
+                                                        <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold ${ROLE_BADGE[u.role] ?? 'bg-gray-100 text-gray-700'}`}>
+                                                            {ROLE_LABEL[u.role] ?? u.role}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-gray-600">
+                                                        {new Date(u.createdAt).toLocaleDateString('id-ID', {
+                                                            day: '2-digit',
+                                                            month: 'short',
+                                                            year: 'numeric',
+                                                        })}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            {userList.length === 0 && (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="py-8 text-center text-gray-600">
+                                                        No users found
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
 
                     <TabsContent value="system">
-                        <Card>
+                        <Card className="border-[#E6DED0] bg-white">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Database className="h-5 w-5" />
+                                    <Database className="h-5 w-5 text-[#C86B2A]" />
                                     System Configuration
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-gray-600">
                                     Database and system settings
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between p-4 rounded-lg border border-[#E6DED0] bg-[#FAFAF9]">
                                     <div>
-                                        <h4 className="font-medium">Database Status</h4>
-                                        <p className="text-sm text-muted-foreground">Connection to PostgreSQL is healthy</p>
+                                        <h4 className="font-medium text-gray-900">Database Status</h4>
+                                        <p className="text-sm text-gray-600">Connection to PostgreSQL is healthy</p>
                                     </div>
-                                    <Badge variant="default" className="bg-green-500">Connected</Badge>
+                                    <Badge className="bg-green-600 hover:bg-green-700">Connected</Badge>
                                 </div>
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between p-4 rounded-lg border border-[#E6DED0] bg-[#FAFAF9]">
                                     <div>
-                                        <h4 className="font-medium">Current User</h4>
-                                        <p className="text-sm text-muted-foreground">{session.name} ({session.role})</p>
+                                        <h4 className="font-medium text-gray-900">Current User</h4>
+                                        <p className="text-sm text-gray-600">{session.name} ({session.role})</p>
                                     </div>
                                     <Badge variant="outline">Authenticated</Badge>
                                 </div>
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-center justify-between p-4 rounded-lg border border-[#E6DED0] bg-[#FAFAF9]">
                                     <div>
-                                        <h4 className="font-medium">System Version</h4>
-                                        <p className="text-sm text-muted-foreground">POS Kygo V2.0.0</p>
+                                        <h4 className="font-medium text-gray-900">System Version</h4>
+                                        <p className="text-sm text-gray-600">POS Kygo V2.0.0</p>
                                     </div>
                                     <Badge variant="secondary">Latest</Badge>
                                 </div>
@@ -119,18 +174,18 @@ export default async function SettingsPage() {
                     </TabsContent>
 
                     <TabsContent value="notifications">
-                        <Card>
+                        <Card className="border-[#E6DED0] bg-white">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
-                                    <Bell className="h-5 w-5" />
+                                    <Bell className="h-5 w-5 text-[#C86B2A]" />
                                     Notification Settings
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-gray-600">
                                     Configure alerts and notifications
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-muted-foreground">Notification preferences coming soon...</p>
+                                <p className="text-gray-600">Notification preferences coming soon...</p>
                             </CardContent>
                         </Card>
                     </TabsContent>

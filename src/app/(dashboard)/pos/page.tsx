@@ -16,15 +16,28 @@ export default async function POSPage() {
     const initialOpenBills = await getOpenBills();
 
     return (
-        <div className="flex flex-col lg:flex-row h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-50 to-slate-100/70 dark:from-background dark:to-background">
-            {/* Main Grid Area */}
-            <div className="flex-1 p-3 sm:p-4 min-h-0 overflow-hidden">
-                <ProductGrid categories={categories} products={products} />
+        <div className="h-[calc(100dvh-2rem)] lg:h-[100dvh] space-y-4 rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4">
+            <div className="flex items-center justify-between rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
+                <div>
+                    <h1 className="text-3xl font-bold leading-tight text-[#1F1D1A]">Point of Sale</h1>
+                    <p className="text-sm text-[#6F6659]">Transaksi cepat, split payment, dan open bill dalam satu workspace.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] px-3 py-2 text-sm text-[#5A5348]">Shift OPEN</span>
+                    <span className="rounded-lg bg-[#C86B2A] px-4 py-2 text-sm font-semibold text-white">Checkout</span>
+                </div>
             </div>
 
-            {/* Sidebar Cart Area */}
-            <div className="w-full lg:w-[420px] xl:w-[460px] shrink-0 border-t lg:border-t-0 lg:border-l bg-card overflow-auto lg:h-full max-h-[45dvh] lg:max-h-none">
-                <CartSidebar initialOpenBills={initialOpenBills} />
+            <div className="flex flex-col lg:flex-row h-[calc(100%-88px)] overflow-hidden rounded-xl border border-[#E6DED0] bg-[#F5F1E8]">
+                {/* Main Grid Area */}
+                <div className="flex-1 p-3 sm:p-4 min-h-0 overflow-hidden">
+                    <ProductGrid categories={categories} products={products} />
+                </div>
+
+                {/* Sidebar Cart Area */}
+                <div className="w-full lg:w-[420px] xl:w-[460px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E6DED0] bg-white overflow-auto lg:h-full max-h-[45dvh] lg:max-h-none">
+                    <CartSidebar initialOpenBills={initialOpenBills} />
+                </div>
             </div>
         </div>
     );

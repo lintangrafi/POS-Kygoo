@@ -11,6 +11,7 @@ import { SmartNumpad } from './SmartNumpad';
 import { closeOpenBillAndCheckout, getOpenBillById, getOpenBills, processTransaction, saveOpenBill, voidOpenBill } from '@/actions/pos-actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { PaymentBadge, getPaymentMethodFromPayments } from '@/components/ui/payment-badge';
 
 type OpenBillListItem = {
     id: number;
@@ -34,6 +35,16 @@ type OpenBillListItem = {
 interface CartSidebarProps {
     initialOpenBills?: OpenBillListItem[];
 }
+
+type CheckoutReceipt = {
+    orderId?: number;
+    invoiceNumber: string;
+    createdAtLabel: string;
+    totalAmount: number;
+    paidAmount: number;
+    itemCount: number;
+    paymentLabel: string;
+};
 
 // Custom simple toast/alert since we didn't fully setup Toaster
 const notify = (msg: string) => alert(msg);
@@ -67,6 +78,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const [isProcessing, setIsProcessing] = useState(false); // Prevent double submission
     const [customerName, setCustomerName] = useState('');
     const [billNote, setBillNote] = useState('');
+    const [latestReceipt, setLatestReceipt] = useState<CheckoutReceipt | null>(null);
 
     // Split-bill state
     const [isSplitMode, setIsSplitMode] = useState(false);
@@ -104,10 +116,12 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
     useEffect(() => {
         if (isPaymentModalOpen) {
-            setAmountPaid(totalAfterDiscount.toString());
+            const paid = activeOpenBill?.paidAmount || 0;
+            const remaining = Math.max(0, totalAfterDiscount - paid);
+            setAmountPaid(remaining.toString());
             setPaymentMethod('CASH');
             setIsSplitMode(false);
-            setSplitCashAmount(totalAfterDiscount);
+            setSplitCashAmount(Math.max(0, totalAfterDiscount - (activeOpenBill?.paidAmount || 0)));
             setSplitNonCashAmount(0);
             setSplitNonCashMethod('QRIS');
             setNumpadTarget('CASH');
@@ -136,6 +150,12 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             setIsLoadingOpenBills(false);
         }
     };
+
+    useEffect(() => {
+        if (isPaymentModalOpen && paymentView === 'OPEN_BILLS') {
+            refreshOpenBills();
+        }
+    }, [isPaymentModalOpen, paymentView]);
 
     useEffect(() => {
         if (!activeOpenBill) return;
@@ -172,7 +192,6 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 return;
             }
 
-            // Show invoice number and clear state
             notify(`Open bill ${result.billNumber} tersimpan (Invoice: ${result.invoiceNumber})`);
             
             // Refresh the open bills list
@@ -216,6 +235,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
         setDiscountType('AMOUNT');
         setDiscountValue(selectedBill.discountAmount);
+        setDownPaymentType('AMOUNT');
+        setDownPaymentValue(selectedBill.paidAmount || selectedBill.downPaymentAmount || 0);
         setCustomerName(selectedBill.customerName || '');
         setBillNote(selectedBill.note || '');
         setActiveOpenBill({
@@ -223,6 +244,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             billNumber: selectedBill.billNumber,
             customerName: selectedBill.customerName || undefined,
             note: selectedBill.note || undefined,
+            paidAmount: selectedBill.paidAmount || 0,
+            downPaymentAmount: selectedBill.downPaymentAmount || 0,
+            totalAmount: selectedBill.totalAmount || 0,
         });
         setPaymentView('PAY');
         notify(`Bill ${selectedBill.billNumber} dimuat ke cart.`);
@@ -325,9 +349,12 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
         setIsProcessing(true); // Set processing flag
 
         try {
+            const paid = activeOpenBill?.paidAmount || 0;
+            const remaining = Math.max(0, totalAfterDiscount - paid);
+
             if (isSplitMode) {
                 const sum = Number(splitCashAmount || 0) + Number(splitNonCashAmount || 0);
-                if (sum < totalAfterDiscount) {
+                if (sum < remaining) {
                     notify("Insufficient total payment for split bill!");
                     setIsProcessing(false);
                     return;
@@ -337,7 +364,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 if (Number(splitCashAmount) > 0) paymentMethods.push({ method: 'CASH', amount: Number(splitCashAmount) });
                 if (Number(splitNonCashAmount) > 0) paymentMethods.push({ method: splitNonCashMethod as 'QRIS'|'TRANSFER', amount: Number(splitNonCashAmount) });
 
-                const changeAmount = Math.max(0, sum - totalAfterDiscount);
+                const changeAmount = Math.max(0, sum - remaining);
 
                 // Processing
                 const result = activeOpenBill
@@ -360,6 +387,15 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     });
 
                 if (result.success) {
+                    setLatestReceipt({
+                        orderId: result.orderId,
+                        invoiceNumber: result.invoiceNumber,
+                        createdAtLabel: result.invoiceAndDate,
+                        totalAmount: Number(result.totalAmount || totalAfterDiscount),
+                        paidAmount: sum,
+                        itemCount: cart.reduce((acc, item) => acc + item.quantity, 0),
+                        paymentLabel: getPaymentMethodFromPayments(result.paymentMethods || paymentMethods),
+                    });
                     notify("Transaction Successful!");
                     resetCurrentOrderContext();
                     setIsPaymentModalOpen(false);
@@ -377,7 +413,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             }
 
             // Simple logic: if Cash, ensure paid >= total
-            if (paymentMethod === 'CASH' && parseInt(amountPaid) < totalAfterDiscount) {
+            if (paymentMethod === 'CASH' && parseInt(amountPaid) < remaining) {
                 notify("Insufficient cash!");
                 setIsProcessing(false);
                 return;
@@ -390,7 +426,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
                     paymentMethods: [{
                         method: paymentMethod,
-                        amount: totalAfterDiscount,
+                        amount: remaining,
                     }],
                     subtotalAmount: subtotal,
                     discountAmount,
@@ -401,7 +437,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
                     paymentMethods: [{
                         method: paymentMethod,
-                        amount: totalAfterDiscount,
+                        amount: remaining,
                     }],
                     subtotalAmount: subtotal,
                     discountAmount,
@@ -410,6 +446,15 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                 });
 
             if (result.success) {
+            setLatestReceipt({
+                orderId: result.orderId,
+                invoiceNumber: result.invoiceNumber,
+                createdAtLabel: result.invoiceAndDate,
+                totalAmount: Number(result.totalAmount || totalAfterDiscount),
+                paidAmount: parseInt(amountPaid) || remaining,
+                itemCount: cart.reduce((acc, item) => acc + item.quantity, 0),
+                paymentLabel: getPaymentMethodFromPayments(result.paymentMethods || [{ method: paymentMethod }]),
+            });
             // Print Receipt Logic Here
             const receiptContent = `
                 KYGOO STUDIO
@@ -454,25 +499,21 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     if (!mounted) return null;
 
     return (
-        <div className="flex flex-col h-full border-l bg-card/95">
+        <div className="flex flex-col h-full border-l border-[#E6DED0] bg-white">
             {/* Cart Header */}
-            <div className="p-4 border-b bg-muted/30">
+            <div className="p-4 border-b border-[#E6DED0] bg-[#FCFAF6]">
                 <div className="flex items-center justify-between">
-                    <h2 className="font-bold text-lg">Current Order</h2>
-                    {activeOpenBill ? (
-                        <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Open Bill: {activeOpenBill.billNumber}</Badge>
-                    ) : (
-                        <Badge variant="secondary">Walk-in</Badge>
-                    )}
+                    <h2 className="font-bold text-lg">Cart</h2>
+                    <span className="text-sm text-[#6F6659]">{activeOpenBill ? 'Open Bill' : 'Walk-in'}</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{cart.length} items</span>
+                <span className="text-sm text-[#8B7C6B]">{cart.length} items</span>
             </div>
 
             {/* Cart Items */}
-            <ScrollArea className="flex-1 p-4 bg-gradient-to-b from-background to-muted/10">
+            <ScrollArea className="flex-1 p-4 bg-[#FFFEFC]">
                 <div className="space-y-4">
                     {cart.map((item) => (
-                        <div key={item.id} className="flex justify-between items-start border rounded-lg p-2 bg-background">
+                        <div key={item.id} className="flex justify-between items-start border border-[#E6DED0] rounded-lg p-2 bg-[#FCFAF6]">
                             <div className="flex-1">
                                 <div className="font-medium">{item.name}</div>
                                 <div className="text-sm text-muted-foreground">{formatRupiah(Number(item.price))}</div>
@@ -496,13 +537,13 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             </ScrollArea>
 
             {/* Totals & Actions */}
-            <div className="p-4 border-t bg-muted/20">
+            <div className="p-4 border-t border-[#E6DED0] bg-[#FCFAF6]">
                 <div className="space-y-1 mb-4">
-                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <div className="flex justify-between items-center text-sm text-[#6F6659]">
                         <span>Subtotal</span>
                         <span>{formatRupiah(subtotal)}</span>
                     </div>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                    <div className="flex justify-between items-center text-sm text-[#6F6659]">
                         <span>Discount</span>
                         <span>- {formatRupiah(discountAmount)}</span>
                     </div>
@@ -512,27 +553,79 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
-                    <Button variant="outline" className="border-red-200 text-red-600 hover:bg-red-50" onClick={() => setIsDeleteModalOpen(true)}>
-                        Delete
-                    </Button>
-                    <Button 
-                        variant="outline" 
-                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                    <Button
+                        variant="outline"
+                        className="border-[#DCCFBF] bg-white text-[#5A5348] hover:bg-[#F8F3EA]"
                         onClick={() => {
                             setPaymentView('OPEN_BILLS');
                             setIsPaymentModalOpen(true);
                         }}
                     >
-                        Open Bills
+                        Open Bill
                     </Button>
-                    <Button className="w-full font-bold text-lg bg-emerald-600 hover:bg-emerald-700 text-white" disabled={cart.length === 0} onClick={() => {
-                        setPaymentView('PAY');
-                        setIsPaymentModalOpen(true);
-                    }}>
-                        Charge
+                    <Button
+                        className="bg-[#C86B2A] text-white hover:bg-[#B25E24]"
+                        disabled={cart.length === 0}
+                        onClick={() => {
+                            setPaymentView('PAY');
+                            setIsPaymentModalOpen(true);
+                        }}
+                    >
+                        Bayar
                     </Button>
                 </div>
+
+                <div className="mt-3">
+                    <Button variant="outline" className="w-full border-[#EBC6C0] text-[#B33D2A] hover:bg-[#FFF1EF]" onClick={() => setIsDeleteModalOpen(true)}>
+                        Delete
+                    </Button>
+                </div>
+
+                {latestReceipt && (
+                    <div className="mt-4 rounded-2xl border border-[#E6DED0] bg-[#FFFDF9] p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#C86B2A]">Invoice siap cetak</p>
+                                <h3 className="mt-1 text-base font-semibold text-[#1F1D1A]">{latestReceipt.invoiceNumber}</h3>
+                                <p className="mt-1 text-xs text-muted-foreground">{latestReceipt.createdAtLabel}</p>
+                            </div>
+                            <PaymentBadge method={latestReceipt.paymentLabel} />
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-xl bg-[#F5F1E8] px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-wide text-[#6B645C]">Items</p>
+                                <p className="mt-1 text-sm font-semibold text-[#1F1D1A]">{latestReceipt.itemCount}</p>
+                            </div>
+                            <div className="rounded-xl bg-[#F5F1E8] px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-wide text-[#6B645C]">Paid</p>
+                                <p className="mt-1 text-sm font-semibold text-[#1F1D1A]">{formatRupiah(latestReceipt.paidAmount)}</p>
+                            </div>
+                            <div className="rounded-xl bg-[#F5F1E8] px-3 py-2">
+                                <p className="text-[11px] uppercase tracking-wide text-[#6B645C]">Total</p>
+                                <p className="mt-1 text-sm font-semibold text-[#1F1D1A]">{formatRupiah(latestReceipt.totalAmount)}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            {latestReceipt.orderId ? (
+                                <Button variant="outline" asChild className="border-[#D9CEC0] bg-white hover:bg-[#F8F3EC]">
+                                    <a href={`/invoices/${latestReceipt.orderId}`} target="_blank" rel="noreferrer">Print</a>
+                                </Button>
+                            ) : (
+                                <Button variant="outline" disabled className="border-[#D9CEC0] bg-white">Print</Button>
+                            )}
+                            {latestReceipt.orderId ? (
+                                <Button asChild className="bg-[#C86B2A] text-white hover:bg-[#B85A1D]">
+                                    <a href={`/invoices/${latestReceipt.orderId}`} target="_blank" rel="noreferrer">Save PDF</a>
+                                </Button>
+                            ) : (
+                                <Button disabled className="bg-[#C86B2A] text-white">Save PDF</Button>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Delete Modal */}
@@ -575,37 +668,48 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
             {/* Payment Modal */}
             <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-                <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden">
-                    <DialogHeader>
-                        <DialogTitle>
+                <DialogContent className="max-w-[95vw] md:max-w-5xl max-h-[95vh] md:max-h-[90vh] flex flex-col overflow-hidden border border-[#E6DED0] bg-[#F5F1E8]">
+                    <DialogHeader className="pb-0">
+                        <DialogTitle className="text-lg font-semibold text-[#1F1D1A]">
                             Payment {activeOpenBill ? `• ${activeOpenBill.billNumber}` : ''}
                         </DialogTitle>
                     </DialogHeader>
 
-                    <div className="grid grid-cols-3 gap-2">
-                        <Button
-                            variant={paymentView === 'PAY' ? 'default' : 'outline'}
-                            onClick={() => setPaymentView('PAY')}
-                        >
-                            Bayar
-                        </Button>
-                        <Button
-                            variant={paymentView === 'OPEN_BILLS' ? 'default' : 'outline'}
-                            onClick={async () => {
-                                setPaymentView('OPEN_BILLS');
-                                await refreshOpenBills();
-                            }}
-                        >
-                            Open Bills
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="border-amber-200 text-amber-700 hover:bg-amber-50"
-                            disabled={cart.length === 0 || isSavingOpenBill}
-                            onClick={handleSaveOpenBill}
-                        >
-                            {isSavingOpenBill ? 'Saving...' : (activeOpenBill ? 'Update Bill' : 'Save to Open Bill')}
-                        </Button>
+                    <div className="rounded-xl border border-[#E6DED0] bg-white p-2">
+                        <div className="grid grid-cols-3 gap-2">
+                            <Button
+                                variant={paymentView === 'PAY' ? 'default' : 'outline'}
+                                className={cn(
+                                    'h-10 rounded-full text-sm',
+                                    paymentView === 'PAY'
+                                        ? 'bg-[#1F1D1A] text-white hover:bg-[#1F1D1A]'
+                                        : 'border-[#E6DED0] text-[#5A5348] hover:bg-[#F8F3EA]'
+                                )}
+                                onClick={() => setPaymentView('PAY')}
+                            >
+                                Bayar
+                            </Button>
+                            <Button
+                                variant={paymentView === 'OPEN_BILLS' ? 'default' : 'outline'}
+                                className={cn(
+                                    'h-10 rounded-full text-sm',
+                                    paymentView === 'OPEN_BILLS'
+                                        ? 'bg-[#1F1D1A] text-white hover:bg-[#1F1D1A]'
+                                        : 'border-[#E6DED0] text-[#5A5348] hover:bg-[#F8F3EA]'
+                                )}
+                                onClick={() => setPaymentView('OPEN_BILLS')}
+                            >
+                                Open Bills
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="h-10 rounded-full border-[#F1D9A8] bg-white text-[#C86B2A] hover:bg-[#FFF6E7]"
+                                disabled={cart.length === 0 || isSavingOpenBill}
+                                onClick={handleSaveOpenBill}
+                            >
+                                {isSavingOpenBill ? 'Saving...' : (activeOpenBill ? 'Update Bill' : 'Save to Open Bill')}
+                            </Button>
+                        </div>
                     </div>
 
                     {paymentView === 'OPEN_BILLS' ? (
@@ -682,43 +786,52 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 overflow-hidden">
                         {/* Left: Methods & Settings & Summary */}
                         <div className="w-full md:w-1/2 flex flex-col gap-4 overflow-y-auto pr-2">
-                            <div className="grid gap-2 rounded-md border p-3 bg-muted/20">
+                            <div className="grid gap-2 rounded-xl border border-[#E6DED0] bg-white p-3">
                                 <input
                                     type="text"
                                     value={customerName}
                                     onChange={(e) => setCustomerName(e.target.value)}
                                     placeholder="Nama customer (opsional)"
-                                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                                    className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
                                 />
                                 <input
                                     type="text"
                                     value={billNote}
                                     onChange={(e) => setBillNote(e.target.value)}
                                     placeholder="Catatan bill"
-                                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                                    className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
                                 />
                             </div>
 
                             <div className="flex-shrink-0 grid grid-cols-3 gap-2">
                                 <Button
-                                    variant={paymentMethod === 'CASH' ? 'default' : 'outline'}
-                                    className="h-20 flex-col gap-2"
+                                    variant="outline"
+                                    className={cn(
+                                        'h-20 flex-col gap-2 rounded-xl border-[#E6DED0] bg-white text-[#1F1D1A] hover:bg-[#F8F3EA]',
+                                        paymentMethod === 'CASH' && 'border-[#1F1D1A] bg-[#F8F3EA]'
+                                    )}
                                     onClick={() => { setPaymentMethod('CASH'); setIsSplitMode(false); setAmountPaid(totalAfterDiscount.toString()); }}
                                 >
                                     <Banknote className="w-6 h-6" />
                                     Cash
                                 </Button>
                                 <Button
-                                    variant={paymentMethod === 'QRIS' ? 'default' : 'outline'}
-                                    className="h-20 flex-col gap-2"
+                                    variant="outline"
+                                    className={cn(
+                                        'h-20 flex-col gap-2 rounded-xl border-[#E6DED0] bg-white text-[#1F1D1A] hover:bg-[#F8F3EA]',
+                                        paymentMethod === 'QRIS' && 'border-[#1F1D1A] bg-[#F8F3EA]'
+                                    )}
                                     onClick={() => { setPaymentMethod('QRIS'); setIsSplitMode(false); setAmountPaid(totalAfterDiscount.toString()); }}
                                 >
                                     <QrCode className="w-6 h-6" />
                                     QRIS
                                 </Button>
                                 <Button
-                                    variant={paymentMethod === 'TRANSFER' ? 'default' : 'outline'}
-                                    className="h-20 flex-col gap-2"
+                                    variant="outline"
+                                    className={cn(
+                                        'h-20 flex-col gap-2 rounded-xl border-[#E6DED0] bg-white text-[#1F1D1A] hover:bg-[#F8F3EA]',
+                                        paymentMethod === 'TRANSFER' && 'border-[#1F1D1A] bg-[#F8F3EA]'
+                                    )}
                                     onClick={() => { setPaymentMethod('TRANSFER'); setIsSplitMode(false); setAmountPaid(totalAfterDiscount.toString()); }}
                                 >
                                     <CreditCard className="w-6 h-6" />
@@ -726,13 +839,13 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 </Button>
                             </div>
 
-                            <div className="flex-shrink-0 mt-3">
-                                <Label htmlFor="discountValue">Discount</Label>
-                                <div className="flex gap-2">
+                            <div className="flex-shrink-0 mt-3 rounded-xl border border-[#E6DED0] bg-white p-3">
+                                <Label htmlFor="discountValue" className="text-sm">Discount</Label>
+                                <div className="mt-2 flex gap-2">
                                     <select
                                         value={discountType}
                                         onChange={(e) => setDiscountType(e.target.value as 'AMOUNT' | 'PERCENT')}
-                                        className="rounded border px-2 py-1"
+                                        className="rounded-md border border-[#E6DED0] px-2 py-1"
                                     >
                                         <option value="AMOUNT">Rp</option>
                                         <option value="PERCENT">%</option>
@@ -758,7 +871,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                                 setDiscountValue(num);
                                             }
                                         }}
-                                        className="w-full rounded border px-2 py-1"
+                                        className="w-full rounded-md border border-[#E6DED0] px-2 py-1"
                                     />
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
@@ -766,13 +879,13 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 </div>
                             </div>
 
-                            <div className="flex-shrink-0 mt-3">
-                                <Label htmlFor="downPaymentValue">Down Payment (DP)</Label>
-                                <div className="flex gap-2">
+                            <div className="flex-shrink-0 mt-3 rounded-xl border border-[#E6DED0] bg-white p-3">
+                                <Label htmlFor="downPaymentValue" className="text-sm">Down Payment (DP)</Label>
+                                <div className="mt-2 flex gap-2">
                                     <select
                                         value={downPaymentType}
                                         onChange={(e) => setDownPaymentType(e.target.value as 'AMOUNT' | 'PERCENT')}
-                                        className="rounded border px-2 py-1"
+                                        className="rounded-md border border-[#E6DED0] px-2 py-1"
                                     >
                                         <option value="AMOUNT">Rp</option>
                                         <option value="PERCENT">%</option>
@@ -799,7 +912,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                                 setDownPaymentValue(num);
                                             }
                                         }}
-                                        className="w-full rounded border px-2 py-1"
+                                        className="w-full rounded-md border border-[#E6DED0] px-2 py-1"
                                     />
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
@@ -845,7 +958,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                             </div>
 
                             <div className="flex-shrink-0 mt-3 flex gap-2">
-                                <Button variant={isSplitMode ? 'default' : 'outline'} onClick={() => setIsSplitMode(!isSplitMode)} className="flex-1">
+                                <Button variant={isSplitMode ? 'default' : 'outline'} onClick={() => setIsSplitMode(!isSplitMode)} className="flex-1 rounded-full">
                                     {isSplitMode ? 'Split: ON' : 'Split Bill'}
                                 </Button>
                             </div>
@@ -904,8 +1017,8 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                             )}
 
                             {/* Total Due & Tendered/Change Summary */}
-                            <div className="mt-4 space-y-3 border-t pt-4">
-                                <div className="bg-white p-4 rounded-lg shadow-sm">
+                            <div className="mt-4 space-y-3 border-t border-[#E6DED0] pt-4">
+                                <div className="bg-white p-4 rounded-xl border border-[#E6DED0]">
                                     <span className="block text-sm text-muted-foreground">Total Due</span>
                                     <span className="block text-3xl font-bold">{formatRupiah(totalAfterDiscount)}</span>
                                     <div className="mt-2 text-xs text-muted-foreground">
@@ -933,11 +1046,11 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                                    <div className="bg-[#F4F1EA] p-3 rounded-xl border border-[#E6DED0]">
                                         <div className="text-xs text-blue-600 font-medium">Tendered</div>
                                         <div className="text-xl font-bold text-blue-700 mt-1">{formatRupiah(parseInt(amountPaid) || (isSplitMode ? (splitCashAmount + splitNonCashAmount) : 0))}</div>
                                     </div>
-                                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                                    <div className="bg-[#F4F1EA] p-3 rounded-xl border border-[#E6DED0]">
                                         <div className="text-xs text-green-600 font-medium">Change</div>
                                         <div className="text-xl font-bold text-green-700 mt-1">{formatRupiah(isSplitMode ? Math.max(0, (splitCashAmount + splitNonCashAmount) - totalAfterDiscount) : change)}</div>
                                     </div>
@@ -946,7 +1059,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                         </div>
 
                         {/* Right: Numpad (Only active for Cash usually) */}
-                        <div className="w-full md:w-1/2 h-full overflow-hidden">
+                        <div className="w-full md:w-1/2 h-full overflow-hidden rounded-xl border border-[#E6DED0] bg-white p-3">
                             <SmartNumpad
                                 value={numpadTarget === 'DOWN_PAYMENT' ? String(downPaymentValue) : (isSplitMode ? (numpadTarget === 'CASH' ? String(splitCashAmount) : numpadTarget === 'NONCASH' ? String(splitNonCashAmount) : amountPaid) : amountPaid)}
                                 onInput={handleNumpadInput}

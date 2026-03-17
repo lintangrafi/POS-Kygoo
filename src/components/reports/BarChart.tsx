@@ -23,13 +23,13 @@ export default function BarChart({
     const prepared = useMemo(() => {
         const amounts = data.map(d => d.amount);
         const max = amounts.length ? Math.max(...amounts) : 0;
-        const w = Math.max(500, data.length * 50);
-        const h = 240;
-        const margin = { top: 28, right: 20, bottom: 80, left: 80 };
+        const w = Math.max(480, data.length * 90);
+        const h = 220;
+        const margin = { top: 20, right: 20, bottom: 56, left: 64 };
         const innerW = w - margin.left - margin.right;
         const innerH = h - margin.top - margin.bottom;
 
-        const barWidth = Math.max(12, innerW / Math.max(1, data.length) - 12);
+        const barWidth = Math.max(18, innerW / Math.max(1, data.length) - 18);
 
         const bars = data.map((d, i) => {
             const x = margin.left + i * (innerW / Math.max(1, data.length));
@@ -62,34 +62,54 @@ export default function BarChart({
         <div className="p-4 border rounded-md text-muted-foreground">No data to display</div>
     );
 
+    const formatPeriod = (label: string) => {
+        if (!label) return '';
+        if (label.includes('-')) {
+            const parts = label.split('-');
+            if (parts.length === 3) return `${parts[1]}/${parts[2]}`;
+        }
+        return label;
+    };
+
     return (
-        <div className="space-y-4 relative" ref={containerRef}>
+        <div className="space-y-3 relative" ref={containerRef}>
             <div className="flex items-center justify-between">
                 <div>
-                    <div className="text-sm font-medium">{yLabel} by {xLabel}</div>
-                    <div className="text-xs text-muted-foreground">Total points: {data.length}</div>
+                    <div className="text-sm font-semibold text-[#1F1D1A]">{yLabel} by {xLabel}</div>
+                    <div className="text-xs text-[#6F6659]">Total points: {data.length}</div>
                 </div>
-                <div className="flex gap-2">
-                    <button title="Copy JSON" className="btn hover:shadow-md transition" onClick={() => navigator.clipboard?.writeText(JSON.stringify(data))}>Copy JSON</button>
-                    <button title="Export CSV" className="btn btn-outline hover:bg-primary hover:text-white transition" onClick={downloadCSV}>Export CSV</button>
+                <div className="flex gap-3 text-xs text-[#1F1D1A]">
+                    <button
+                        title="Copy JSON"
+                        className="hover:text-[#C86B2A]"
+                        onClick={() => navigator.clipboard?.writeText(JSON.stringify(data))}
+                    >
+                        Copy JSON
+                    </button>
+                    <button
+                        title="Export CSV"
+                        className="hover:text-[#C86B2A]"
+                        onClick={downloadCSV}
+                    >
+                        Export CSV
+                    </button>
                 </div>
             </div>
 
-            <div className="overflow-auto">
-                <svg width={prepared.w} height={prepared.h} className="block">
+            <div className="overflow-auto rounded-xl border border-[#E6DED0] bg-[#FCFAF6] p-3">
+                <svg viewBox={`0 0 ${prepared.w} ${prepared.h}`} width="100%" height={prepared.h} className="block">
                     <g>
-                        {/* stronger y axis */}
-                        <line x1={prepared.margin.left} x2={prepared.margin.left} y1={prepared.margin.top} y2={prepared.margin.top + prepared.innerH} stroke="#94A3B8" strokeWidth={1.2} />
-                        {/* x axis */}
-                        <line x1={prepared.margin.left} x2={prepared.w - prepared.margin.right} y1={prepared.margin.top + prepared.innerH} y2={prepared.margin.top + prepared.innerH} stroke="#94A3B8" strokeWidth={1.2} />
+                        {/* axes */}
+                        <line x1={prepared.margin.left} x2={prepared.margin.left} y1={prepared.margin.top} y2={prepared.margin.top + prepared.innerH} stroke="#BDB3A5" strokeWidth={1} />
+                        <line x1={prepared.margin.left} x2={prepared.w - prepared.margin.right} y1={prepared.margin.top + prepared.innerH} y2={prepared.margin.top + prepared.innerH} stroke="#BDB3A5" strokeWidth={1} />
 
                         {/* y axis ticks and grid */}
                         {prepared.tickValues.map((t, i) => {
                             const y = prepared.margin.top + prepared.innerH - (t / (prepared.tickValues[prepared.tickValues.length - 1] || 1)) * prepared.innerH;
                             return (
                                 <g key={i}>
-                                    <line x1={prepared.margin.left} x2={prepared.w - prepared.margin.right} y1={y} y2={y} stroke="#CBD5E1" strokeWidth={1} />
-                                    <text x={prepared.margin.left - 12} y={y + 4} fontSize={12} textAnchor="end" fill="#0F172A">{t.toLocaleString()}</text>
+                                    <line x1={prepared.margin.left} x2={prepared.w - prepared.margin.right} y1={y} y2={y} stroke="#E6DED0" strokeWidth={1} strokeDasharray="3 3" />
+                                    <text x={prepared.margin.left - 10} y={y + 4} fontSize={11} textAnchor="end" fill="#6F6659">{t.toLocaleString('id-ID')}</text>
                                 </g>
                             );
                         })}
@@ -102,8 +122,8 @@ export default function BarChart({
                                     y={b.y}
                                     width={b.barWidth}
                                     height={b.height}
-                                    fill={hovered === idx ? '#1E3A8A' : '#2563EB'}
-                                    rx={6}
+                                    fill={hovered === idx ? '#235CD1' : '#2C6BE5'}
+                                    rx={10}
                                     style={{ cursor: 'pointer', transition: 'fill 120ms' }}
                                     onMouseMove={(e: any) => {
                                         const rect = containerRef.current?.getBoundingClientRect();
@@ -114,15 +134,15 @@ export default function BarChart({
                                     onMouseLeave={() => { setTooltip(null); setHovered(null); }}
                                 />
                                 {showValues && b.height > 12 && (
-                                    <text x={b.x + 4 + b.barWidth / 2} y={b.y - 6} fontSize={11} textAnchor="middle" fill="#111827">{b.amount.toLocaleString()}</text>
+                                    <text x={b.x + 4 + b.barWidth / 2} y={b.y - 6} fontSize={11} textAnchor="middle" fill="#1F1D1A">{b.amount.toLocaleString('id-ID')}</text>
                                 )}
-                                <text x={b.x + 4 + b.barWidth / 2} y={prepared.h - 20} fontSize={11} textAnchor="middle" fill="#0F172A">{b.period}</text>
+                                <text x={b.x + 4 + b.barWidth / 2} y={prepared.h - 18} fontSize={11} textAnchor="middle" fill="#6F6659">{formatPeriod(b.period)}</text>
                             </g>
                         ))}
 
                         {/* axis labels */}
-                        <text x={prepared.margin.left - 48} y={prepared.margin.top - 6} fontSize={12} textAnchor="start" fill="#0F172A">{yLabel}</text>
-                        <text x={(prepared.w) / 2} y={prepared.h} fontSize={12} textAnchor="middle" fill="#0F172A">{xLabel}</text>
+                        <text x={prepared.margin.left - 48} y={prepared.margin.top - 6} fontSize={11} textAnchor="start" fill="#6F6659">{yLabel}</text>
+                        <text x={(prepared.w) / 2} y={prepared.h} fontSize={11} textAnchor="middle" fill="#6F6659">{xLabel}</text>
                     </g>
                 </svg>
             </div>

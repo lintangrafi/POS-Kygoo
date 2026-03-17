@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatRupiah } from '@/lib/utils';
 import { ChevronDown, ChevronUp, DollarSign, FileText, Clock, XCircle } from 'lucide-react';
+import { PaymentBadge, getPaymentMethodFromPayments } from '@/components/ui/payment-badge';
 
 export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: any) {
     const [orders, setOrders] = useState(serverOrders || []);
@@ -71,17 +72,17 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
     const getStatusBadge = (status: string, type?: string) => {
         if (type === 'DRAFT_INVOICE') {
             if (status === 'OPEN') {
-                return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Draft - Open</Badge>;
+                return <Badge className="bg-[#EAF1FF] border border-[#C4D6FF] text-[#1D4E9E] hover:bg-[#EAF1FF]">Draft - Open</Badge>;
             }
             if (status === 'PARTIAL') {
-                return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Draft - Partial Payment</Badge>;
+                return <Badge className="bg-[#FFFBEA] border border-[#FFE58A] text-[#7A5800] hover:bg-[#FFFBEA]">Draft - Partial Payment</Badge>;
             }
         } else {
             if (status === 'COMPLETED') {
-                return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>;
+                return <Badge className="bg-[#EAF7EF] border border-[#BFE7CB] text-[#17663A] hover:bg-[#EAF7EF]">Completed</Badge>;
             }
             if (status === 'VOID') {
-                return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Void</Badge>;
+                return <Badge className="bg-[#FFF0F0] border border-[#FFBDBD] text-[#8B1A1A] hover:bg-[#FFF0F0]">Void</Badge>;
             }
         }
         return <Badge variant="outline">{status}</Badge>;
@@ -178,6 +179,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                             <TableHead className="font-semibold">Date & Time</TableHead>
                                             <TableHead className="font-semibold">Cashier</TableHead>
                                             <TableHead className="font-semibold">Status</TableHead>
+                                            <TableHead className="font-semibold">Payment</TableHead>
                                             <TableHead className="font-semibold text-right">Discount</TableHead>
                                             <TableHead className="font-semibold text-right">Total</TableHead>
                                             <TableHead className="font-semibold text-center">Actions</TableHead>
@@ -210,6 +212,9 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                                             <div className="text-sm font-medium">{o.user?.name || 'Unknown'}</div>
                                                         </TableCell>
                                                         <TableCell>{getStatusBadge(o.status)}</TableCell>
+                                                        <TableCell>
+                                                            <PaymentBadge method={getPaymentMethodFromPayments(o.payments || [])} />
+                                                        </TableCell>
                                                         <TableCell className="text-right">
                                                             {Number(o.discountAmount || 0) > 0 ? (
                                                                 <div>
@@ -241,7 +246,7 @@ export default function InvoiceListClient({ serverOrders, draftInvoices = [] }: 
                                                     </TableRow>
                                                     {expandedId === o.id && o.items && o.items.length > 0 && (
                                                         <TableRow className="bg-slate-50">
-                                                            <TableCell colSpan={8} className="p-6">
+                                                            <TableCell colSpan={9} className="p-6">
                                                                 <div className="ml-8">
                                                                     <h4 className="font-bold text-base mb-4">Order Details</h4>
                                                                     <div className="bg-white rounded-lg p-4 border">

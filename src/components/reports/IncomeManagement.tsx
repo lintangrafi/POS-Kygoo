@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PaymentBadge } from '@/components/ui/payment-badge';
+import { CategoryBadge } from '@/components/ui/category-badge';
 
 type Income = {
     id: number;
@@ -22,6 +24,11 @@ type Income = {
 export function IncomeManagement({ incomes }: { incomes: Income[] }) {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const visibleLimit = 6;
+    const [page, setPage] = useState(1);
+    const totalPages = Math.max(1, Math.ceil(incomes.length / visibleLimit));
+    const startIndex = (page - 1) * visibleLimit;
+    const visibleIncomes = incomes.slice(startIndex, startIndex + visibleLimit);
 
     const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -62,15 +69,21 @@ export function IncomeManagement({ incomes }: { incomes: Income[] }) {
     const today = new Date();
     const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-    const getPaymentMethodBadgeColor = (method: string) => {
-        return method === 'CASH' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
-    };
+
 
     return (
         <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Daily Income</h3>
-                <Button onClick={() => setIsAddOpen(true)}>+ Add Income</Button>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-semibold text-[#1F1D1A]">Daily Income</h3>
+                    <p className="text-xs text-[#6F6659]">Catat pemasukan tambahan harian.</p>
+                </div>
+                <Button
+                    className="rounded-full border border-[#E6DED0] bg-white text-[#1F1D1A] hover:bg-[#F8F3EA]"
+                    onClick={() => setIsAddOpen(true)}
+                >
+                    + Add Income
+                </Button>
             </div>
 
             {incomes.length === 0 ? (
@@ -79,30 +92,28 @@ export function IncomeManagement({ incomes }: { incomes: Income[] }) {
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {incomes.map((income) => (
-                        <div key={income.id} className="flex items-start justify-between p-3 border rounded-md">
+                    {visibleIncomes.map((income) => (
+                        <div key={income.id} className="flex items-start justify-between rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
                             <div className="flex-1">
-                                <div className="font-medium">{income.description}</div>
-                                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                    <span>{income.category}</span>
+                                <div className="font-semibold text-[#1F1D1A]">{income.description}</div>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#6F6659]">
+                                    <CategoryBadge kind="income" category={income.category} />
                                     <span>•</span>
-                                    <span className={`px-2 py-1 rounded text-xs font-semibold ${getPaymentMethodBadgeColor(income.paymentMethod)}`}>
-                                        {income.paymentMethod}
-                                    </span>
+                                    <PaymentBadge method={income.paymentMethod} />
                                     <span>•</span>
-                                    <span>{new Date(income.date).toLocaleDateString()}</span>
+                                    <span>{new Date(income.date).toLocaleDateString('id-ID')}</span>
                                     <span>•</span>
                                     <span>{income.user?.name}</span>
                                 </div>
                                 {income.notes && (
-                                    <div className="text-sm text-muted-foreground mt-1">{income.notes}</div>
+                                    <div className="mt-1 text-xs text-[#6F6659]">{income.notes}</div>
                                 )}
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="text-green-600 font-semibold">+{formatRupiah(Number(income.amount))}</div>
+                                <div className="text-sm font-semibold text-[#1F7A3F]">+{formatRupiah(Number(income.amount))}</div>
                                 <button
                                     onClick={() => handleDelete(income.id)}
-                                    className="text-xs text-red-500 hover:text-red-700"
+                                    className="text-xs text-[#C3472E] hover:text-[#9C3724]"
                                     title="Delete income"
                                 >
                                     Delete
@@ -110,6 +121,28 @@ export function IncomeManagement({ incomes }: { incomes: Income[] }) {
                             </div>
                         </div>
                     ))}
+                    {incomes.length > visibleLimit && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[#6F6659]">
+                            <span>Menampilkan {startIndex + 1}-{Math.min(startIndex + visibleLimit, incomes.length)} dari {incomes.length} pemasukan.</span>
+                            <div className="flex flex-wrap gap-1">
+                                {Array.from({ length: totalPages }).map((_, idx) => {
+                                    const pageNum = idx + 1;
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setPage(pageNum)}
+                                            className={pageNum === page
+                                                ? 'h-7 w-7 rounded-full border border-[#C86B2A] bg-[#FFF6E7] text-[#C86B2A]'
+                                                : 'h-7 w-7 rounded-full border border-[#E6DED0] bg-white text-[#6F6659] hover:bg-[#F8F3EA]'
+                                            }
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

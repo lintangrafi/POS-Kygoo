@@ -1,8 +1,10 @@
 import { getOrderById } from '@/actions/admin-actions';
+import { getOpenBillByInvoiceNumber, getOpenBillByOrderId } from '@/actions/pos-actions';
 import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { PaymentBadge } from '@/components/ui/payment-badge';
 
 export default async function InvoiceDetail({ params }: { params: { id: string } }) {
     const p = await params;
@@ -16,10 +18,10 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
 
     const getStatusBadge = (status: string) => {
         if (status === 'COMPLETED') {
-            return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-base px-4 py-1">✓ Completed</Badge>;
+            return <Badge className="bg-[#EAF7EF] border border-[#BFE7CB] text-[#17663A] hover:bg-[#EAF7EF] text-base px-4 py-1">Completed</Badge>;
         }
         if (status === 'VOID') {
-            return <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-base px-4 py-1">✕ Void</Badge>;
+            return <Badge className="bg-[#FFF0F0] border border-[#FFBDBD] text-[#8B1A1A] hover:bg-[#FFF0F0] text-base px-4 py-1">Void</Badge>;
         }
         return <Badge variant="outline" className="text-base px-4 py-1">{status}</Badge>;
     };
@@ -35,18 +37,32 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
         });
     };
 
+    let openBill: any = null;
+    if (order.invoiceNumber.startsWith('OB-')) {
+        openBill = await getOpenBillByInvoiceNumber(order.invoiceNumber);
+    } else {
+        openBill = await getOpenBillByOrderId(order.id);
+    }
+
     return (
-        <div className="p-8 space-y-6 max-w-5xl mx-auto">
+        <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
             {/* Header */}
-            <Card className="border-2 border-blue-500">
+            <Card className="border-[#E6DED0] bg-[#FFFDF9]">
                 <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h1 className="text-3xl font-bold text-blue-600 mb-2">Invoice {order.invoiceNumber}</h1>
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="flex-1">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#C86B2A]">Invoice Detail</p>
+                            <h1 className="mb-2 mt-2 text-2xl sm:text-3xl font-bold text-[#1F1D1A]">{order.invoiceNumber}</h1>
                             <p className="text-muted-foreground text-sm">{formatDateTime(order.createdAt)}</p>
                             <p className="text-sm mt-2"><span className="font-semibold">Cashier:</span> {order.user?.name || 'Unknown'}</p>
+                            {order.invoiceNumber.startsWith('OB-') && (
+                                <p className="mt-2 text-xs font-semibold text-[#C86B2A]">Down Payment Invoice</p>
+                            )}
+                            {openBill && !order.invoiceNumber.startsWith('OB-') && Number(openBill.paidAmount || 0) > 0 && (
+                                <p className="mt-2 text-xs text-[#6F6659]">DP Invoice: {openBill.billNumber}</p>
+                            )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                             {getStatusBadge(order.status)}
                         </div>
                     </div>
@@ -55,9 +71,9 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
 
             {/* Order Items */}
             <Card>
-                <CardHeader className="bg-slate-50">
+                <CardHeader className="bg-[#F8F3EC]">
                     <CardTitle className="flex items-center gap-2">
-                        <div className="w-1 h-6 bg-blue-500 rounded"></div>
+                        <div className="h-6 w-1 rounded bg-[#C86B2A]"></div>
                         Order Items
                     </CardTitle>
                     <CardDescription>Products purchased</CardDescription>
@@ -65,7 +81,7 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                 <CardContent className="pt-6">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-slate-100 border-b-2 border-slate-200">
+                            <TableRow className="border-b-2 border-[#E6DED0] bg-[#FBF8F2]">
                                 <TableHead className="font-bold">Product</TableHead>
                                 <TableHead className="font-bold text-center">Qty</TableHead>
                                 <TableHead className="font-bold text-right">Price</TableHead>
@@ -73,25 +89,31 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {order.items.map((it: any) => (
-                                <TableRow key={it.id} className="border-b border-slate-100">
-                                    <TableCell className="font-medium">{it.product?.name || 'Unknown'}</TableCell>
+                            {(openBill?.items || order.items).map((it: any) => (
+                                <TableRow key={it.id} className="border-b border-[#F1E8DA]">
+                                    <TableCell className="font-medium">{it.product?.name || it.productName || 'Unknown'}</TableCell>
                                     <TableCell className="text-center">
-                                        <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-md font-bold">{it.quantity}</span>
+                                        <span className="rounded-md bg-[#F5F1E8] px-3 py-1 font-bold text-[#6B645C]">{it.quantity}</span>
                                     </TableCell>
-                                    <TableCell className="text-right text-muted-foreground">{formatRupiah(Number(it.priceAtSale))}</TableCell>
-                                    <TableCell className="text-right font-bold">{formatRupiah(Number(it.priceAtSale) * Number(it.quantity))}</TableCell>
+                                    <TableCell className="text-right text-muted-foreground">{formatRupiah(Number(it.priceAtSale || it.price))}</TableCell>
+                                    <TableCell className="text-right font-bold">{formatRupiah(Number(it.priceAtSale || it.price) * Number(it.quantity))}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
                     </Table>
 
-                    <div className="mt-6 bg-slate-50 rounded-lg p-4">
+                    <div className="mt-6 rounded-lg bg-[#FBF8F2] p-4">
                         <div className="flex justify-end">
                             <div className="text-right space-y-3 min-w-[300px]">
+                                {openBill && order.invoiceNumber.startsWith('OB-') && Number(openBill.paidAmount || 0) > 0 && (
+                                    <div className="flex justify-between items-center text-amber-700">
+                                        <span className="text-sm font-medium">Down Payment Paid:</span>
+                                        <span className="text-lg font-semibold">{formatRupiah(Number(openBill.paidAmount))}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Subtotal:</span>
-                                    <span className="text-lg font-semibold">{formatRupiah(Number(order.subtotalAmount ?? order.totalAmount))}</span>
+                                    <span className="text-lg font-semibold">{formatRupiah(Number(openBill?.subtotalAmount ?? order.subtotalAmount ?? order.totalAmount))}</span>
                                 </div>
                                 {Number(order.discountAmount || 0) > 0 && (
                                     <div className="flex justify-between items-center text-orange-600">
@@ -104,10 +126,32 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                                         </div>
                                     </div>
                                 )}
-                                <div className="flex justify-between items-center pt-3 border-t-2 border-slate-300">
+                                {openBill && Number(openBill.paidAmount || 0) > 0 && !order.invoiceNumber.startsWith('OB-') && (
+                                    <>
+                                        <div className="flex justify-between items-center text-amber-700">
+                                            <span className="text-sm font-medium">Down Payment Paid:</span>
+                                            <span className="text-lg font-semibold">- {formatRupiah(Number(openBill.paidAmount))}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-emerald-700">
+                                            <span className="text-sm font-medium">Remaining Paid (This Invoice):</span>
+                                            <span className="text-lg font-semibold">
+                                                {formatRupiah(Math.max(0, Number(openBill.totalAmount || order.totalAmount) - Number(openBill.paidAmount || 0)))}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="flex justify-between items-center pt-3 border-t-2 border-[#D9CEC0]">
                                     <span className="text-base font-bold">Grand Total:</span>
-                                    <span className="text-3xl font-bold text-green-600">{formatRupiah(Number(order.totalAmount))}</span>
+                                    <span className="text-3xl font-bold text-[#17663A]">{formatRupiah(Number(openBill?.totalAmount ?? order.totalAmount))}</span>
                                 </div>
+                                {openBill && order.invoiceNumber.startsWith('OB-') && (
+                                    <div className="flex justify-between items-center text-[#6F6659]">
+                                        <span className="text-sm font-medium">Remaining for Final Invoice:</span>
+                                        <span className="text-lg font-semibold">
+                                            {formatRupiah(Math.max(0, Number(openBill.totalAmount || order.totalAmount) - Number(openBill.paidAmount || 0)))}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -117,9 +161,9 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
             {/* Payment Information */}
             {order.payments && order.payments.length > 0 && (
                 <Card>
-                    <CardHeader className="bg-green-50">
+                    <CardHeader className="bg-[#F8F3EC]">
                         <CardTitle className="flex items-center gap-2">
-                            <div className="w-1 h-6 bg-green-500 rounded"></div>
+                            <div className="h-6 w-1 rounded bg-[#C86B2A]"></div>
                             Payment Information
                         </CardTitle>
                         <CardDescription>Payment method breakdown</CardDescription>
@@ -127,15 +171,9 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                     <CardContent className="pt-6">
                         <div className="space-y-3">
                             {order.payments.map((p: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border-2 border-slate-200">
+                                <div key={idx} className="flex items-center justify-between rounded-lg border border-[#E6DED0] bg-[#FFFDF9] p-4">
                                     <div className="flex items-center gap-4">
-                                        <span className={`px-4 py-2 rounded-lg font-bold shadow-md ${
-                                            p.method === 'CASH' ? 'bg-green-500 text-white' :
-                                            p.method === 'QRIS' ? 'bg-blue-500 text-white' :
-                                            'bg-gray-500 text-white'
-                                        }`}>
-                                            {p.method}
-                                        </span>
+                                        <PaymentBadge method={p.method} className="px-3 py-1" />
                                         <span className="text-sm text-muted-foreground">Payment {idx + 1}</span>
                                     </div>
                                     <div className="font-bold text-xl">{formatRupiah(Number(p.amount))}</div>

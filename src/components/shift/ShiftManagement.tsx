@@ -6,21 +6,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { formatRupiah } from '@/lib/utils';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Wallet, Clock3 } from 'lucide-react';
 
 interface ShiftManagementProps {
-    initialShift: any; // Using any for simplicity in rapid dev, ideally types from schema
-    lastShift?: any; // last closed shift for pre-filling initial cash
+    initialShift: any;
+    lastShift?: any;
+}
+
+function AdjustmentRow({ adjustment }: { adjustment: any }) {
+    return (
+        <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/70 px-4 py-3">
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{adjustment.product?.name || 'Unknown'}</p>
+                <p className="text-xs text-muted-foreground">by {adjustment.user?.name || 'Unknown'}</p>
+            </div>
+            <div className="w-20 shrink-0 text-right">
+                <span className={`font-mono text-sm font-semibold ${adjustment.change < 0 ? 'text-[#8B1A1A]' : 'text-[#17663A]'}`}>
+                    {adjustment.change > 0 ? '+' : ''}{adjustment.change}
+                </span>
+            </div>
+            <div className="w-36 shrink-0 text-right text-xs text-muted-foreground">
+                {new Date(adjustment.createdAt).toLocaleString()}
+            </div>
+        </div>
+    );
 }
 
 export function ShiftManagement({ initialShift, lastShift }: ShiftManagementProps) {
     const [isOpen, setIsOpen] = useState(!!initialShift);
-
-    // Open Shift State
     const [openState, openAction, openPending] = useActionState(openShiftAction, null);
-
-    // Close Shift State
     const [closeState, closeAction, closePending] = useActionState(closeShiftAction, null);
 
     useEffect(() => {
@@ -37,38 +51,38 @@ export function ShiftManagement({ initialShift, lastShift }: ShiftManagementProp
     const [fromFilter, setFromFilter] = useState<string>('');
     const [toFilter, setToFilter] = useState<string>('');
 
-    const loadAdjustments = async (p = 1) => {
+    const loadAdjustments = async (targetPage = 1) => {
         try {
-            const q = new URLSearchParams();
-            q.set('limit', String(limit));
-            q.set('page', String(p));
-            if (productFilter) q.set('productId', productFilter);
-            if (fromFilter) q.set('from', fromFilter);
-            if (toFilter) q.set('to', toFilter);
-            const res = await fetch('/api/inventory/adjustments-public?' + q.toString());
+            const query = new URLSearchParams();
+            query.set('limit', String(limit));
+            query.set('page', String(targetPage));
+            if (productFilter) query.set('productId', productFilter);
+            if (fromFilter) query.set('from', fromFilter);
+            if (toFilter) query.set('to', toFilter);
+            const res = await fetch('/api/inventory/adjustments-public?' + query.toString());
             const json = await res.json();
             if (json?.success) {
                 setAdjustments(json.data || []);
                 setTotal(json.total || 0);
-                setPage(json.page || p);
+                setPage(json.page || targetPage);
             }
-        } catch (err) {
-            console.warn('Failed to load adjustments', err);
+        } catch (error) {
+            console.warn('Failed to load adjustments', error);
         }
     };
 
     useEffect(() => {
-        // initial product list (for filter)
-        const load = async () => {
+        const loadProducts = async () => {
             try {
                 const res = await fetch('/api/inventory/products');
                 const json = await res.json();
                 if (json?.success) setProducts(json.data || []);
-            } catch (err) {
-                console.warn('Failed to load products', err);
+            } catch (error) {
+                console.warn('Failed to load products', error);
             }
         };
-        load();
+
+        loadProducts();
         loadAdjustments(1);
 
         const onCreated = () => loadAdjustments(1);
@@ -76,190 +90,104 @@ export function ShiftManagement({ initialShift, lastShift }: ShiftManagementProp
         return () => window.removeEventListener('adjustment:created', onCreated as EventListener);
     }, [isOpen, productFilter, fromFilter, toFilter]);
 
-    const goPrev = () => { if (page > 1) loadAdjustments(page - 1); };
-    const goNext = () => { if (page * limit < total) loadAdjustments(page + 1); };
-    const applyFilters = () => loadAdjustments(1);
+    const pageCount = Math.max(1, Math.ceil(total / limit));
 
-    if (isOpen) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-4 space-y-6">
-                <Card className="w-full max-w-md border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-900">
-                    <CardHeader className="text-center">
-                        <div className="mx-auto bg-green-100 text-green-600 rounded-full p-3 w-16 h-16 flex items-center justify-center mb-2">
-                            <CheckCircle2 className="w-8 h-8" />
-                        </div>
-                        <CardTitle className="text-green-700 dark:text-green-400">Shift is Open</CardTitle>
-                        <CardDescription>You are ready to process transactions.</CardDescription>
+    return (
+        <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4 sm:p-6 lg:p-8">
+            <div className="flex items-center justify-between rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-[#1F1D1A]">Shift Management</h1>
+                    <p className="text-sm text-[#6F6659]">Monitor shift aktif, rekonsiliasi kas, dan histori shift per kasir.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span className={`rounded-lg border px-3 py-2 text-sm ${isOpen ? 'border-[#CDE7D8] bg-[#EAF7EF] text-[#17663A]' : 'border-[#E6DED0] bg-[#F8F3EA] text-[#6F6659]'}`}>
+                        Status: {isOpen ? 'OPEN' : 'CLOSED'}
+                    </span>
+                </div>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                <Card className="border-[#E6DED0] bg-white">
+                    <CardHeader>
+                        <CardTitle>Shift Aktif</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="bg-white/50 dark:bg-black/20 p-4 rounded-lg text-center">
-                            <p className="text-sm text-muted-foreground">Started at</p>
-                            <p className="font-mono font-medium">
-                                {initialShift?.startTime ? new Date(initialShift.startTime).toLocaleString() : new Date().toLocaleString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Opened by <span className="font-medium">{initialShift?.user?.name || 'Unknown'}</span></p>
-                        </div>
+                    <CardContent className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2"><span>Kasir</span><span>{initialShift?.user?.name || '-'}</span></div>
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2"><span>Mulai Shift</span><span>{initialShift?.startTime ? new Date(initialShift.startTime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}</span></div>
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2"><span>Opening Cash</span><span>{lastShift?.totalCashReceived ? Number(lastShift.totalCashReceived).toLocaleString('id-ID') : '-'}</span></div>
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2"><span>Order Count</span><span>-</span></div>
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2"><span>Expected Closing</span><span>-</span></div>
                     </CardContent>
                 </Card>
 
-                <Card className="w-full max-w-md">
+                <Card className="border-[#E6DED0] bg-white">
                     <CardHeader>
-                        <CardTitle>End Shift</CardTitle>
-                        <CardDescription>Close your shift to generate a daily report.</CardDescription>
+                        <CardTitle>Rekonsiliasi</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <form action={closeAction} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="reportedCash">Total Cash in Drawer (Physical Count)</Label>
-                                <Input
-                                    id="reportedCash"
-                                    name="reportedCash"
-                                    type="number"
-                                    placeholder="0"
-                                    required
-                                    min="0"
-                                />
+                    <CardContent className="space-y-3">
+                        <div className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2 text-sm"><span>Expected Cash</span><span>{lastShift?.totalCashReceived ? Number(lastShift.totalCashReceived).toLocaleString('id-ID') : '-'}</span></div>
+                        <form action={closeAction} className="space-y-2">
+                            <Label htmlFor="reportedCash">Actual Cash</Label>
+                            <Input id="reportedCash" name="reportedCash" type="number" placeholder="0" required min="0" className="bg-white" />
+                            {closeState?.error && <p className="text-sm text-destructive">{closeState.error}</p>}
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button type="button" variant="outline">Hold</Button>
+                                <Button className="bg-[#C86B2A] text-white hover:bg-[#B85A1D]" disabled={closePending || !isOpen}>
+                                    {closePending ? 'Closing...' : 'Konfirmasi Tutup'}
+                                </Button>
                             </div>
-                            {closeState?.error && (
-                                <p className="text-red-500 text-sm">{closeState.error}</p>
-                            )}
-                            <Button variant="destructive" className="w-full" disabled={closePending}>
-                                {closePending ? 'Closing...' : 'Close Shift'}
-                            </Button>
                         </form>
                     </CardContent>
                 </Card>
-
-                <Card className="w-full max-w-md">
-                    <CardHeader>
-                        <CardTitle>Recent Stock Adjustments</CardTitle>
-                        <CardDescription>Last 10 adjustments (visible to cashier)</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="mb-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <select value={productFilter} onChange={(e) => setProductFilter(e.target.value)} className="rounded-md border px-2 py-1">
-                                <option value="">All products</option>
-                                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                            <input type="date" value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} className="rounded-md border px-2 py-1" />
-                            <div className="flex gap-2">
-                                <input type="date" value={toFilter} onChange={(e) => setToFilter(e.target.value)} className="rounded-md border px-2 py-1" />
-                                <Button onClick={() => applyFilters()} className="ml-auto">Filter</Button>
-                            </div>
-                        </div>
-
-                        {adjustments.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center">No adjustments found.</p>
-                        ) : (
-                            <div className="space-y-3 max-h-64 overflow-y-auto">
-                                {adjustments.map((a) => (
-                                    <div key={a.id} className="flex items-center justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-medium truncate">{a.product?.name || 'Unknown'}</div>
-                                            <div className="text-xs text-muted-foreground">by {a.user?.name || 'Unknown'}</div>
-                                        </div>
-                                        <div className={`font-mono ${a.change < 0 ? 'text-red-600' : 'text-green-600'}`}>{a.change}</div>
-                                        <div className="text-xs text-muted-foreground ml-4 whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</div>
-                                    </div>
-                                ))}
-
-                                <div className="flex items-center justify-between mt-3">
-                                    <div className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / limit))}</div>
-                                    <div className="flex gap-2">
-                                        <Button disabled={page <= 1} onClick={() => goPrev()}>Prev</Button>
-                                        <Button disabled={page * limit >= total} onClick={() => goNext()}>Next</Button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
             </div>
-        );
-    }
 
-    return (
-        <div className="flex flex-col items-center justify-center h-full p-4">
-            <Card className="w-full max-w-md border-orange-200 bg-orange-50 dark:bg-orange-950/20 dark:border-orange-900 shadow-xl">
-                <CardHeader className="text-center">
-                    <div className="mx-auto bg-orange-100 text-orange-600 rounded-full p-3 w-16 h-16 flex items-center justify-center mb-2">
-                        <AlertCircle className="w-8 h-8" />
-                    </div>
-                    <CardTitle className="text-orange-800 dark:text-orange-400">Shift is Closed</CardTitle>
-                    <CardDescription>You must open a shift before accessing the POS.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form action={openAction} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="initialCash">Initial Cash (Float)</Label>
-                            <Input
-                                id="initialCash"
-                                name="initialCash"
-                                type="number"
-                                placeholder="0"
-                                required
-                                min="0"
-                                defaultValue={lastShift?.totalCashReceived ?? ''}
-                                className="bg-white text-black dark:bg-black dark:text-white"
-                            />
-                            <p className="text-xs text-muted-foreground">Enter the amount of cash currently in the drawer.</p>
-                        </div>
-                        {openState?.error && (
-                            <p className="text-red-500 text-sm">{openState.error}</p>
-                        )}
-                        <Button size="lg" className="w-full font-bold" disabled={openPending}>
-                            {openPending ? 'Opening...' : 'Open Shift'}
-                        </Button>
-                    </form>
-                </CardContent>
-            </Card>
-
-            <Card className="w-full max-w-md mt-4">
+            <Card className="border-[#E6DED0] bg-white">
                 <CardHeader>
-                    <CardTitle>Recent Stock Adjustments</CardTitle>
-                    <CardDescription>Last 10 adjustments (visible to cashier)</CardDescription>
+                    <CardTitle>Riwayat Shift</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="mb-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <select value={productFilter} onChange={(e) => setProductFilter(e.target.value)} className="rounded-md border px-2 py-1">
+                    <div className="grid grid-cols-4 text-xs uppercase text-[#8B7C6B]">
+                        <span>Tanggal</span><span>Kasir</span><span>Status</span><span>Difference</span>
+                    </div>
+                    <div className="mt-2 space-y-2 text-sm">
+                        {lastShift ? (
+                            <div className="grid grid-cols-4 rounded-md bg-[#F8F3EA] px-3 py-2">
+                                <span>{new Date(lastShift.endTime || Date.now()).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</span>
+                                <span>{lastShift.user?.name || '-'}</span>
+                                <span>Closed</span>
+                                <span>{Number(lastShift.totalCashReceived || 0).toLocaleString('id-ID')}</span>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-[#6F6659]">Belum ada histori shift.</p>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            <details className="rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
+                <summary className="cursor-pointer text-sm font-semibold text-[#5A5348]">Advanced: Riwayat Adjustment Stok</summary>
+                <div className="mt-4 space-y-4">
+                    <div className="grid gap-2 sm:grid-cols-3">
+                        <select value={productFilter} onChange={(event) => setProductFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                             <option value="">All products</option>
-                            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
                         </select>
-                        <input type="date" value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} className="rounded-md border px-2 py-1" />
+                        <input type="date" value={fromFilter} onChange={(event) => setFromFilter(event.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm" />
                         <div className="flex gap-2">
-                            <input type="date" value={toFilter} onChange={(e) => setToFilter(e.target.value)} className="rounded-md border px-2 py-1" />
-                            <Button onClick={() => applyFilters()} className="ml-auto">Filter</Button>
+                            <input type="date" value={toFilter} onChange={(event) => setToFilter(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" />
+                            <Button type="button" variant="outline" onClick={() => loadAdjustments(1)}>Filter</Button>
                         </div>
                     </div>
 
-                    {adjustments.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center">No adjustments found.</p>
-                    ) : (
-                        <div className="space-y-3">
-                            {adjustments.map((a) => (
-                                <div key={a.id} className="flex items-center justify-between">
-                                    <div>
-                                        <div className="text-sm font-medium">{a.product?.name || 'Unknown'}</div>
-                                        <div className="text-xs text-muted-foreground">by {a.user?.name || 'Unknown'}</div>
-                                    </div>
-                                    <div className={`font-mono ${a.change < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {a.change}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground ml-4">{new Date(a.createdAt).toLocaleString()}</div>
-                                </div>
-                            ))}
-
-                            <div className="flex items-center justify-between mt-3">
-                                <div className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / limit))}</div>
-                                <div className="flex gap-2">
-                                    <Button disabled={page <= 1} onClick={() => goPrev()}>Prev</Button>
-                                    <Button disabled={page * limit >= total} onClick={() => goNext()}>Next</Button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    <div className="space-y-2">
+                        {adjustments.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No adjustments found.</div>
+                        ) : (
+                            adjustments.map((adjustment) => <AdjustmentRow key={adjustment.id} adjustment={adjustment} />)
+                        )}
+                    </div>
+                </div>
+            </details>
         </div>
     );
 }

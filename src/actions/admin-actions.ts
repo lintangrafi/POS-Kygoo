@@ -1,7 +1,7 @@
 'use server';
 
 import { db } from '@/db';
-import { orders, products, auditLogs, orderItems, payments } from '@/db/schema';
+import { orders, products, auditLogs, orderItems, payments, users } from '@/db/schema';
 import { desc, sql, eq, and, gte, lt, lte } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 
@@ -43,6 +43,7 @@ export async function getDashboardStats() {
         limit: 5,
         with: {
             user: true,
+            payments: true,
         }
     });
 
@@ -81,6 +82,18 @@ export async function getAuditLogs({ from, to, limit = 50 }: { from?: Date; to?:
         with: {
             user: true,
         }
+    });
+}
+
+// --- Invoices / Orders management (admin only)
+export async function getUsers() {
+    const session = await verifySession();
+    if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
+        throw new Error('Not authorized');
+    }
+    return await db.query.users.findMany({
+        orderBy: [desc(users.id)],
+        columns: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 }
 

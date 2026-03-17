@@ -21,7 +21,10 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
         orderBy: [desc(orders.createdAt)],
     });
 
-    const turnover = ordersInRange.reduce((acc, o) => acc + Number(o.totalAmount), 0);
+    const turnover = ordersInRange.reduce((acc, o) => {
+        const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        return acc + paid;
+    }, 0);
     const totalOrders = ordersInRange.length;
 
     // COGS from order items snapshot
@@ -45,7 +48,8 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     const dailyRevenue: Record<string, number> = {};
     for (const o of ordersInRange) {
         const d = new Date(o.createdAt).toISOString().slice(0, 10);
-        dailyRevenue[d] = (dailyRevenue[d] || 0) + Number(o.totalAmount);
+        const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        dailyRevenue[d] = (dailyRevenue[d] || 0) + paid;
     }
 
     // Include shift totals (reported cash) that ended in the range
@@ -209,7 +213,8 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
         if (!map[k]) {
             map[k] = { amount: 0, paymentsBreakdown: {}, ordersCount: 0 };
         }
-        map[k].amount += Number(o.totalAmount);
+        const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        map[k].amount += paid;
         map[k].ordersCount += 1;
         
         // Aggregate payments

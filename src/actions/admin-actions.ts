@@ -131,23 +131,39 @@ export async function requireAdmin() {
 export async function getOrders({ limit = 50, from, to }: { limit?: number; from?: Date; to?: Date } = {}) {
     await requireAdmin();
 
-    return await db.query.orders.findMany({
-        where: (ordersTable, { and: andOp, gte: gteOp, lt: ltOp }) => {
-            const conds: any[] = [];
-            if (from) conds.push(gteOp(ordersTable.createdAt, from));
-            if (to) conds.push(ltOp(ordersTable.createdAt, to));
-            if (conds.length === 0) return undefined;
-            return andOp(...conds);
-        },
-        orderBy: [desc(orders.createdAt)],
-        limit,
-        with: {
-            user: true,
-            event: true,
-            items: { with: { product: true } },
-            payments: true,
-        }
-    });
+    const whereBuilder = (ordersTable: any, { and: andOp, gte: gteOp, lt: ltOp }: any) => {
+        const conds: any[] = [];
+        if (from) conds.push(gteOp(ordersTable.createdAt, from));
+        if (to) conds.push(ltOp(ordersTable.createdAt, to));
+        if (conds.length === 0) return undefined;
+        return andOp(...conds);
+    };
+
+    try {
+        return await db.query.orders.findMany({
+            where: whereBuilder,
+            orderBy: [desc(orders.createdAt)],
+            limit,
+            with: {
+                user: true,
+                event: true,
+                items: { with: { product: true } },
+                payments: true,
+            }
+        });
+    } catch (error) {
+        console.warn('[getOrders] fallback without event relation due schema mismatch', error);
+        return await db.query.orders.findMany({
+            where: whereBuilder,
+            orderBy: [desc(orders.createdAt)],
+            limit,
+            with: {
+                user: true,
+                items: { with: { product: true } },
+                payments: true,
+            }
+        });
+    }
 }
 
 export async function getOrderById(id: number) {
@@ -159,15 +175,28 @@ export async function getOrderById(id: number) {
 
     console.log('[getOrderById] called by', { userId: session.userId, role: session.role }, 'for id', id);
 
-    const order = await db.query.orders.findFirst({
-        where: eq(orders.id, id),
-        with: {
-            user: true,
-            event: true,
-            items: { with: { product: true } },
-            payments: true,
-        }
-    });
+    let order: any = null;
+    try {
+        order = await db.query.orders.findFirst({
+            where: eq(orders.id, id),
+            with: {
+                user: true,
+                event: true,
+                items: { with: { product: true } },
+                payments: true,
+            }
+        });
+    } catch (error) {
+        console.warn('[getOrderById] fallback without event relation due schema mismatch', error);
+        order = await db.query.orders.findFirst({
+            where: eq(orders.id, id),
+            with: {
+                user: true,
+                items: { with: { product: true } },
+                payments: true,
+            }
+        });
+    }
 
     if (!order) console.log('[getOrderById] order not found for id', id);
     return order;

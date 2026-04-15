@@ -42,6 +42,22 @@ async function requireAdmin() {
     return session;
 }
 
+function isMissingEventSchemaError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+    return message.includes('events') || message.includes('event_id') || message.includes('does not exist');
+}
+
+async function ensureEventSchemaAvailable() {
+    try {
+        await db.query.events.findFirst({ columns: { id: true } });
+    } catch (error) {
+        if (isMissingEventSchemaError(error)) {
+            throw new Error('Fitur event belum aktif di database production. Jalankan migration add_events_table_and_links.sql terlebih dahulu.');
+        }
+        throw error;
+    }
+}
+
 async function validateNoOverlap(startDate: Date, endDate: Date, excludeId?: number) {
     const overlapConditions: any[] = [
         eq(events.isActive, true),
@@ -73,9 +89,17 @@ async function validateNoOverlap(startDate: Date, endDate: Date, excludeId?: num
 export async function getEvents() {
     await requireAdmin();
 
-    return db.query.events.findMany({
-        orderBy: [desc(events.startDate), desc(events.id)],
-    });
+    try {
+        return await db.query.events.findMany({
+            orderBy: [desc(events.startDate), desc(events.id)],
+        });
+    } catch (error) {
+        if (isMissingEventSchemaError(error)) {
+            console.warn('[events] schema not ready, returning empty events list');
+            return [];
+        }
+        throw error;
+    }
 }
 
 export async function getActiveEvent(onDate?: Date) {
@@ -83,14 +107,23 @@ export async function getActiveEvent(onDate?: Date) {
 
     const ref = onDate ? new Date(onDate) : new Date();
 
-    const active = await db.query.events.findFirst({
-        where: and(
-            eq(events.isActive, true),
-            lte(events.startDate, ref),
-            gte(events.endDate, ref)
-        ),
-        orderBy: [desc(events.startDate), desc(events.id)],
-    });
+    let active: any = null;
+    try {
+        active = await db.query.events.findFirst({
+            where: and(
+                eq(events.isActive, true),
+                lte(events.startDate, ref),
+                gte(events.endDate, ref)
+            ),
+            orderBy: [desc(events.startDate), desc(events.id)],
+        });
+    } catch (error) {
+        if (isMissingEventSchemaError(error)) {
+            console.warn('[events] schema not ready, active event fallback to null');
+            return null;
+        }
+        throw error;
+    }
 
     return active || null;
 }
@@ -98,16 +131,25 @@ export async function getActiveEvent(onDate?: Date) {
 export async function getEventOptions() {
     await verifySession();
 
-    const rows = await db.query.events.findMany({
-        where: eq(events.isActive, true),
-        orderBy: [desc(events.startDate), desc(events.id)],
-        columns: {
-            id: true,
-            name: true,
-            startDate: true,
-            endDate: true,
-        },
-    });
+    let rows: Array<{ id: number; name: string; startDate: Date; endDate: Date }> = [];
+    try {
+        rows = await db.query.events.findMany({
+            where: eq(events.isActive, true),
+            orderBy: [desc(events.startDate), desc(events.id)],
+            columns: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+            },
+        });
+    } catch (error) {
+        if (isMissingEventSchemaError(error)) {
+            console.warn('[events] schema not ready, returning empty event options');
+            return [];
+        }
+        throw error;
+    }
 
     return rows.map((row) => ({
         id: row.id,
@@ -119,6 +161,7 @@ export async function getEventOptions() {
 
 export async function createEvent(data: EventInput) {
     const session = await requireAdmin();
+    await ensureEventSchemaAvailable();
 
     if (!data.name.trim()) {
         throw new Error('Event name is required');
@@ -161,6 +204,7 @@ export async function createEvent(data: EventInput) {
 
 export async function updateEvent(id: number, data: Partial<EventInput>) {
     const session = await requireAdmin();
+    await ensureEventSchemaAvailable();
 
     const existing = await db.query.events.findFirst({ where: eq(events.id, id) });
     if (!existing) {
@@ -214,6 +258,7 @@ export async function updateEvent(id: number, data: Partial<EventInput>) {
 
 export async function deleteEvent(id: number) {
     const session = await requireAdmin();
+    await ensureEventSchemaAvailable();
 
     const existing = await db.query.events.findFirst({ where: eq(events.id, id) });
     if (!existing) {
@@ -246,6 +291,7 @@ export async function bulkAssignEvent(params: {
     includeIncomes?: boolean;
 }) {
     const session = await requireAdmin();
+    await ensureEventSchemaAvailable();
 
     const event = await db.query.events.findFirst({ where: eq(events.id, params.eventId) });
     if (!event) {

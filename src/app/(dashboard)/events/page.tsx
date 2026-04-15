@@ -8,7 +8,19 @@ export default async function EventsPage() {
         return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
     }
 
-    const rows = await getEvents();
+    let rows: Awaited<ReturnType<typeof getEvents>> = [];
+    let migrationNotice: string | null = null;
+    try {
+        rows = await getEvents();
+    } catch (error) {
+        console.error('[events/page] failed to load events', error);
+        migrationNotice = 'Fitur event belum aktif di database production. Jalankan migration add_events_table_and_links.sql lalu redeploy.';
+    }
+
+    if (rows.length === 0 && !migrationNotice) {
+        migrationNotice = 'Belum ada data event. Jika seharusnya ada, pastikan migration add_events_table_and_links.sql sudah dijalankan di production.';
+    }
+
     const events = rows.map((event) => ({
         id: event.id,
         name: event.name,
@@ -18,5 +30,14 @@ export default async function EventsPage() {
         isActive: event.isActive,
     }));
 
-    return <EventManagement events={events} />;
+    return (
+        <div className="space-y-4">
+            {migrationNotice && (
+                <div className="rounded-md border border-[#F2C6C6] bg-[#FFF1F1] px-3 py-2 text-xs text-[#8B1A1A]">
+                    {migrationNotice}
+                </div>
+            )}
+            <EventManagement events={events} />
+        </div>
+    );
 }

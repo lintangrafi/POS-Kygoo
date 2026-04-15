@@ -1,5 +1,6 @@
 'use client';
 
+import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -73,7 +74,9 @@ export function EventManagement({ events }: { events: EventItem[] }) {
         setIsModalOpen(true);
     };
 
-    const handleSubmitEvent = async (formData: FormData) => {
+    const handleSubmitEvent = async (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        const formData = new FormData(e.currentTarget);
         const payload = {
             name: String(formData.get('name') || '').trim(),
             startDate: new Date(String(formData.get('startDate') || '')),
@@ -98,7 +101,12 @@ export function EventManagement({ events }: { events: EventItem[] }) {
             setEditingEvent(null);
             router.refresh();
         } catch (error: any) {
-            alert(error.message || 'Failed to save event');
+            const message = String(error?.message || 'Failed to save event');
+            if (message.toLowerCase().includes('server components render')) {
+                alert('Gagal menyimpan event. Kemungkinan migration event belum diterapkan di database production.');
+            } else {
+                alert(message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -297,7 +305,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <form action={handleSubmitEvent} className="space-y-4">
+                    <form onSubmit={handleSubmitEvent} className="space-y-4">
                         <div>
                             <Label htmlFor="name">Event Name</Label>
                             <Input id="name" name="name" defaultValue={editingEvent?.name || ''} required />

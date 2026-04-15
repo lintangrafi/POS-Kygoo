@@ -34,6 +34,7 @@ type OpenBillListItem = {
 
 interface CartSidebarProps {
     initialOpenBills?: OpenBillListItem[];
+    isShiftOpen?: boolean;
 }
 
 type CheckoutReceipt = {
@@ -49,7 +50,7 @@ type CheckoutReceipt = {
 // Custom simple toast/alert since we didn't fully setup Toaster
 const notify = (msg: string) => alert(msg);
 
-export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
+export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartSidebarProps) {
     const {
         cart,
         removeFromCart,
@@ -79,6 +80,10 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
     const [customerName, setCustomerName] = useState('');
     const [billNote, setBillNote] = useState('');
     const [latestReceipt, setLatestReceipt] = useState<CheckoutReceipt | null>(null);
+    const [splitError, setSplitError] = useState('');
+    const [isQtyNumpadOpen, setIsQtyNumpadOpen] = useState(false);
+    const [qtyTargetId, setQtyTargetId] = useState<number | null>(null);
+    const [qtyValue, setQtyValue] = useState('0');
 
     // Split-bill state
     const [isSplitMode, setIsSplitMode] = useState(false);
@@ -125,6 +130,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             setSplitNonCashAmount(0);
             setSplitNonCashMethod('QRIS');
             setNumpadTarget('CASH');
+            setSplitError('');
             // Don't reset paymentView here - let the button click handler set it
             setIsProcessing(false); // Reset processing flag when modal opens
         } else {
@@ -344,6 +350,11 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
             return;
         }
 
+        if (!isShiftOpen) {
+            notify('No active shift found. Open a shift before checkout.');
+            return;
+        }
+
         if (cart.length === 0) return;
 
         setIsProcessing(true); // Set processing flag
@@ -354,8 +365,9 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
             if (isSplitMode) {
                 const sum = Number(splitCashAmount || 0) + Number(splitNonCashAmount || 0);
-                if (sum < remaining) {
-                    notify("Insufficient total payment for split bill!");
+                if (sum !== remaining) {
+                    setSplitError('Split payment amounts do not equal total');
+                    notify('Split payment amounts do not equal total');
                     setIsProcessing(false);
                     return;
                 }
@@ -522,7 +534,18 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.id, item.quantity - 1)}>
                                     <Minus className="h-3 w-3" />
                                 </Button>
-                                <span className="w-4 text-center text-sm">{item.quantity}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-6 w-8 px-1 text-center text-sm"
+                                    onClick={() => {
+                                        setQtyTargetId(item.id);
+                                        setQtyValue(String(item.quantity));
+                                        setIsQtyNumpadOpen(true);
+                                    }}
+                                >
+                                    {item.quantity}
+                                </Button>
                                 <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => updateQuantity(item.id, item.quantity + 1)}>
                                     <Plus className="h-3 w-3" />
                                 </Button>
@@ -561,20 +584,27 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                             setPaymentView('OPEN_BILLS');
                             setIsPaymentModalOpen(true);
                         }}
+                        disabled={!isShiftOpen || cart.length === 0}
                     >
                         Open Bill
                     </Button>
                     <Button
                         className="bg-[#C86B2A] text-white hover:bg-[#B25E24]"
-                        disabled={cart.length === 0}
                         onClick={() => {
                             setPaymentView('PAY');
                             setIsPaymentModalOpen(true);
                         }}
+                        disabled={!isShiftOpen || cart.length === 0}
                     >
                         Bayar
                     </Button>
                 </div>
+
+                {!isShiftOpen && (
+                    <div className="rounded-lg border border-[#F2C6C6] bg-[#FFF1F1] px-3 py-2 text-xs text-[#8B1A1A]">
+                        Checkout disabled until a shift is opened.
+                    </div>
+                )}
 
                 <div className="mt-3">
                     <Button variant="outline" className="w-full border-[#EBC6C0] text-[#B33D2A] hover:bg-[#FFF1EF]" onClick={() => setIsDeleteModalOpen(true)}>
@@ -611,10 +641,10 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                         <div className="mt-4 grid grid-cols-2 gap-2">
                             {latestReceipt.orderId ? (
                                 <Button variant="outline" asChild className="border-[#D9CEC0] bg-white hover:bg-[#F8F3EC]">
-                                    <a href={`/invoices/${latestReceipt.orderId}`} target="_blank" rel="noreferrer">Print</a>
+                                    <a href={`/invoices/${latestReceipt.orderId}`} target="_blank" rel="noreferrer">View invoice</a>
                                 </Button>
                             ) : (
-                                <Button variant="outline" disabled className="border-[#D9CEC0] bg-white">Print</Button>
+                                <Button variant="outline" disabled className="border-[#D9CEC0] bg-white">View invoice</Button>
                             )}
                             {latestReceipt.orderId ? (
                                 <Button asChild className="bg-[#C86B2A] text-white hover:bg-[#B85A1D]">
@@ -965,6 +995,11 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
                             {isSplitMode && (
                                 <div className="mt-3 space-y-2">
+                                    {splitError && (
+                                        <div className="rounded-md border border-[#F2C6C6] bg-[#FFF1F1] px-3 py-2 text-xs text-[#8B1A1A]">
+                                            {splitError}
+                                        </div>
+                                    )}
                                     <div>
                                         <Label htmlFor="splitCash">Cash Amount</Label>
                                         <input 
@@ -975,6 +1010,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                             onFocus={() => setNumpadTarget('CASH')} 
                                             onChange={(e) => {
                                                 const val = e.target.value.trim();
+                                                setSplitError('');
                                                 if (val === '') {
                                                     setSplitCashAmount(0);
                                                 } else {
@@ -1001,6 +1037,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                                                 onFocus={() => setNumpadTarget('NONCASH')} 
                                                 onChange={(e) => {
                                                     const val = e.target.value.trim();
+                                                    setSplitError('');
                                                     if (val === '') {
                                                         setSplitNonCashAmount(0);
                                                     } else {
@@ -1060,6 +1097,7 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
 
                         {/* Right: Numpad (Only active for Cash usually) */}
                         <div className="w-full md:w-1/2 h-full overflow-hidden rounded-xl border border-[#E6DED0] bg-white p-3">
+                            <div className="mb-2 text-sm font-semibold text-[#1F1D1A]">Smart Numpad</div>
                             <SmartNumpad
                                 value={numpadTarget === 'DOWN_PAYMENT' ? String(downPaymentValue) : (isSplitMode ? (numpadTarget === 'CASH' ? String(splitCashAmount) : numpadTarget === 'NONCASH' ? String(splitNonCashAmount) : amountPaid) : amountPaid)}
                                 onInput={handleNumpadInput}
@@ -1092,6 +1130,37 @@ export function CartSidebar({ initialOpenBills = [] }: CartSidebarProps) {
                     </div>
                     </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isQtyNumpadOpen} onOpenChange={setIsQtyNumpadOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Smart Numpad</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="text-sm text-muted-foreground">Quantity</div>
+                        <div className="rounded-md border border-[#E6DED0] bg-[#F8F3EA] px-3 py-2 text-center text-2xl font-mono">
+                            {qtyValue}
+                        </div>
+                        <SmartNumpad
+                            value={qtyValue}
+                            onInput={(val) => {
+                                setQtyValue((prev) => (prev === '0' ? val : prev + val));
+                            }}
+                            onDelete={() => {
+                                setQtyValue((prev) => (prev.length <= 1 ? '0' : prev.slice(0, -1)));
+                            }}
+                            onClear={() => setQtyValue('0')}
+                            onEnter={() => {
+                                if (qtyTargetId !== null) {
+                                    const nextQty = Math.max(1, Number(qtyValue || '0'));
+                                    updateQuantity(qtyTargetId, nextQty);
+                                }
+                                setIsQtyNumpadOpen(false);
+                            }}
+                        />
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

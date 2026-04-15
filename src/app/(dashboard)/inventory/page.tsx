@@ -6,10 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { formatRupiah } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { verifySession } from '@/lib/auth';
 
 export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string } }) {
     const sp = (await searchParams) || {};
     const tab = (sp.tab as 'menu' | 'stock') || 'menu';
+
+    const session = await verifySession();
+    if (session.role === 'CASHIER') {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
 
     const menuItems = await getMenuItems();
     const adjustments = await getStockAdjustments({ limit: 100 });

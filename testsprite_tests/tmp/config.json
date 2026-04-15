@@ -1,0 +1,21 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "backendAuthType": "basic token",
+  "backendUsername": "admin@kygoo.studio",
+  "backendPassword": "admin123",
+  "executionArgs": {
+    "projectName": "POS-Kygo-V2",
+    "projectPath": "d:\\Project\\POS-Kygo-V2",
+    "testIds": [],
+    "additionalInstruction": "Prioritaskan white-box coverage untuk branch authorization, validation, transaksi, dan error handling pada server actions kritikal (pos, shift, inventory, admin, report).",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-PgxsPWTTxgBksLLPHviOa4Ddze_QNt7eNpBmCzLL_w8imBR03itJJouoO_xuxQZDS5ShwSH8VMPWwpZSERqSvJn_OZ0bTQVr4tXAkP7_0Yalxn2VZR8pDqznE2EFCuY9XNY"
+    }
+  },
+  "serverPort": 57293,
+  "proxy": "http://ade23600-dbf0-4d13-b2a1-2bdda65fff80:clNnvdCYnpmxylqXkim0Yz9fZ34rXqvu@tun.testsprite.com:8080"
+}

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "TC001",
+    "title": "post login with valid and invalid credentials",
+    "description": "Test the POST /login endpoint with valid admin credentials to ensure it returns a 302 redirect to /dashboard and sets a session cookie. Also test with invalid credentials to verify it returns a 401 authentication error."
+  },
+  {
+    "id": "TC002",
+    "title": "get dashboard with and without valid session",
+    "description": "Test the GET /dashboard endpoint with a valid session cookie to receive a 200 dashboard page. Test without a session cookie to verify it redirects with a 302 to /login."
+  },
+  {
+    "id": "TC003",
+    "title": "post shift open with and without existing open shift",
+    "description": "Test the POST /shift/open endpoint with a valid session cookie to open a shift and receive a 200 response. Attempt to open a shift again when one is already open to verify it returns a 400 error indicating shift already open."
+  },
+  {
+    "id": "TC004",
+    "title": "post api inventory add product with authorization and validation",
+    "description": "Test the POST /api/inventory/add-product endpoint with admin credentials and valid product data to receive a 200 response with the created product. Test with cashier credentials to verify a 403 unauthorized error. Test with invalid data to receive a 400 validation error."
+  },
+  {
+    "id": "TC005",
+    "title": "post api inventory adjust stock with validation and authorization",
+    "description": "Test the POST /api/inventory/adjust-stock endpoint with admin credentials and valid stock adjustment data to receive a 200 response. Test with zero or negative change values to verify 400 validation errors. Test with cashier credentials to verify 403 unauthorized error."
+  },
+  {
+    "id": "TC006",
+    "title": "post pos checkout with valid and invalid scenarios",
+    "description": "Test the POST /pos/checkout endpoint with an open shift and valid payment totals to receive a 200 transaction success response. Test checkout without an open shift to receive a 400 business validation error. Test with payment amounts that do not sum to order total to verify a 400 payment mismatch error."
+  },
+  {
+    "id": "TC007",
+    "title": "post api admin void order with role enforcement and error handling",
+    "description": "Test the POST /api/admin/void-order endpoint with admin credentials and valid orderId to receive a 200 void success response. Test with cashier credentials to verify 403 unauthorized error. Test with a non-existent orderId to receive a 404 order not found error."
+  },
+  {
+    "id": "TC008",
+    "title": "post api admin delete order with role enforcement and error handling",
+    "description": "Test the POST /api/admin/delete-order endpoint with admin credentials and valid orderId to receive a 200 delete success response. Test with cashier credentials to verify 403 unauthorized error. Test with a non-existent orderId to receive a 404 order not found error."
+  }
+]

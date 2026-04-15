@@ -2,10 +2,15 @@ import { getOrders } from '@/actions/admin-actions';
 import { getDraftInvoices } from '@/actions/pos-actions';
 import InvoiceMasterDetailClient from './InvoiceMasterDetailClient';
 import { getOpenBillsByRange } from '@/actions/pos-actions';
+import { verifySession } from '@/lib/auth';
 
 export default async function InvoicesPage({ searchParams }: { searchParams?: { period?: string; from?: string; to?: string; day?: string; week?: string; type?: string } }) {
     // searchParams may be a Promise in Next.js app router — await it first
     const sp = (await searchParams) || {};
+    const session = await verifySession();
+    if (session.role === 'CASHIER') {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
 
     // Determine date range from search params; default to today
     const period = (sp?.period as 'today' | 'daily' | 'weekly' | 'monthly' | 'custom') || 'today';
@@ -14,6 +19,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
     const selectedType = (sp?.type as 'ALL' | 'OB' | 'INV') || 'ALL';
     const to = sp?.to ? new Date(sp.to) : new Date();
     const from = sp?.from ? new Date(sp.from) : new Date();
+    const dateRangeError = sp?.from && sp?.to && from.getTime() > to.getTime() ? 'Invalid date range' : '';
 
     // for period shortcuts, override from/to
     let fromDate = from;
@@ -24,6 +30,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
         toDate = new Date(fromDate.getTime() + 1000 * 60 * 60 * 24);
     } else if (period === 'daily') {
         const base = new Date();
+        base.setHours(0, 0, 0, 0);
         const jsDay = base.getDay(); // 0=Sun..6=Sat
         const mondayOffset = (jsDay + 6) % 7; // days since Monday
         const weekStart = new Date(base);
@@ -34,8 +41,8 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
             fromDate = new Date(weekStart.getTime() + selectedDay * 24 * 60 * 60 * 1000);
             toDate = new Date(fromDate.getTime() + 24 * 60 * 60 * 1000);
         } else {
-            fromDate = weekStart;
-            toDate = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+            fromDate = base;
+            toDate = new Date(base.getTime() + 24 * 60 * 60 * 1000);
         }
     } else if (period === 'weekly') {
         const monthStart = new Date(to.getFullYear(), to.getMonth(), 1);
@@ -92,6 +99,11 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
 
             <div className="rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
                 <div className="text-sm font-semibold text-[#5A5348]">Filter</div>
+                {dateRangeError && (
+                    <div className="mt-2 rounded-md border border-[#F2C6C6] bg-[#FFF1F1] px-3 py-2 text-xs text-[#8B1A1A]">
+                        {dateRangeError}
+                    </div>
+                )}
                 <form method="get" className="mt-3 flex flex-wrap items-end gap-4">
                     <div>
                         <label className="text-sm text-[#6F6659]">From</label>

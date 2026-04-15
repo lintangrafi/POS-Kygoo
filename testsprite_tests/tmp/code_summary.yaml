@@ -1,0 +1,152 @@
+version: "2"
+type: backend
+tech_stack:
+  - TypeScript
+  - Next.js 16 (App Router)
+  - PostgreSQL
+  - Drizzle ORM
+  - NextAuth
+features:
+  - name: Authentication and Session Guard
+    description: Session validation and role-based authorization guard for protected operations.
+    files:
+      - src/lib/auth.ts
+      - src/middleware.ts
+      - src/actions/auth-actions.ts
+    endpoints:
+      - method: POST
+        path: /login
+        description: Authenticate user credentials and create user session.
+        auth_required: false
+        response_schema:
+          "200": Redirect to dashboard
+          "401": Authentication error
+      - method: GET
+        path: /dashboard
+        description: Protected dashboard route requiring valid session.
+        auth_required: true
+        response_schema:
+          "200": Dashboard page
+          "302": Redirect to /login
+    depends_on: []
+  - name: Inventory Management API
+    description: Product and stock operations including create, update, archive, delete, and adjustment.
+    files:
+      - src/app/api/inventory/add-product/route.ts
+      - src/app/api/inventory/update-product/route.ts
+      - src/app/api/inventory/delete-product/route.ts
+      - src/app/api/inventory/archive-product/route.ts
+      - src/app/api/inventory/adjust-stock/route.ts
+      - src/app/api/inventory/products/route.ts
+      - src/app/api/inventory/categories/route.ts
+      - src/app/api/inventory/toggle-menu-item/route.ts
+      - src/actions/inventory-actions.ts
+    endpoints:
+      - method: GET
+        path: /api/inventory/products
+        description: Retrieve inventory products.
+        auth_required: true
+        response_schema:
+          "200": Product[]
+      - method: POST
+        path: /api/inventory/add-product
+        description: Create a new product record.
+        auth_required: true
+        request_schema:
+          body:
+            name: string
+            categoryId: string
+            price: number
+            cost: number
+            stock: number
+        response_schema:
+          "200": Product
+          "400": Validation error
+          "403": Unauthorized
+      - method: POST
+        path: /api/inventory/adjust-stock
+        description: Apply stock adjustment for a product.
+        auth_required: true
+        request_schema:
+          body:
+            productId: string
+            change: number
+            type: string
+            note: string
+        response_schema:
+          "200": Stock adjustment result
+          "400": Validation error
+          "403": Unauthorized
+    depends_on:
+      - Authentication and Session Guard
+  - name: POS Checkout Transaction
+    description: Checkout transaction with order creation, payment insertion, stock update, and audit logging.
+    files:
+      - src/actions/pos-actions.ts
+      - src/actions/shift-actions.ts
+      - src/actions/report-actions.ts
+    endpoints:
+      - method: POST
+        path: /pos/checkout
+        description: Process checkout with single or split payment.
+        auth_required: true
+        request_schema:
+          body:
+            items: array
+            paymentMethods: array
+            discountType: string
+            discountValue: number
+        response_schema:
+          "200": Transaction success
+          "400": Business validation error
+          "500": Transaction failed
+      - method: POST
+        path: /shift/open
+        description: Open shift required before checkout processing.
+        auth_required: true
+        response_schema:
+          "200": Shift opened
+          "400": Shift already open
+    depends_on:
+      - Authentication and Session Guard
+      - Inventory Management API
+  - name: Admin Order Control API
+    description: Administrative order operations for void and delete with role enforcement.
+    files:
+      - src/app/api/admin/void-order/route.ts
+      - src/app/api/admin/delete-order/route.ts
+      - src/actions/admin-actions.ts
+    endpoints:
+      - method: POST
+        path: /api/admin/void-order
+        description: Void existing order by admin role.
+        auth_required: true
+        request_schema:
+          body:
+            orderId: string
+            reason: string
+        response_schema:
+          "200": Void success
+          "404": Order not found
+          "403": Unauthorized
+      - method: POST
+        path: /api/admin/delete-order
+        description: Delete order and related data by admin role.
+        auth_required: true
+        request_schema:
+          body:
+            orderId: string
+            reason: string
+        response_schema:
+          "200": Delete success
+          "404": Order not found
+          "403": Unauthorized
+    depends_on:
+      - Authentication and Session Guard
+known_limitations:
+  - issue: Automated unit test command is not defined in npm scripts.
+    location: package.json
+    impact: White-box branch regression checks are not directly executable via npm test.
+  - issue: Middleware convention is deprecated in current Next.js version.
+    location: src/middleware.ts
+    impact: Future framework upgrades may require migration to proxy convention.

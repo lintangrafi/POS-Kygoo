@@ -35,6 +35,13 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
         load();
     }, []);
 
+    useEffect(() => {
+        if (!open || mode !== 'add') return;
+        if (!form.categoryId && categories.length > 0) {
+            setForm((s: any) => ({ ...s, categoryId: categories[0].id }));
+        }
+    }, [open, mode, categories, form.categoryId]);
+
     // Reset form when dialog opens in 'add' mode
     useEffect(() => {
         if (open && mode === 'add') {
@@ -57,6 +64,10 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         try {
+            if (!form.categoryId) {
+                toast.toast({ title: 'Category is required', variant: 'destructive' });
+                return;
+            }
             const payload: any = {
                 name: form.name,
                 sku: form.sku || undefined,
@@ -89,7 +100,7 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{mode === 'add' ? 'Add Product' : 'Edit Product'}</DialogTitle>
+                    <DialogTitle>{mode === 'add' ? 'Create Product' : 'Edit Product'}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-3">
                     <div>

@@ -1,0 +1,1845 @@
+[
+  {
+    "id": "TC001",
+    "title": "Successful login redirects to dashboard",
+    "description": "Verifies a user can log in with valid credentials and is redirected into the authenticated dashboard area.",
+    "category": "User Authentication",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Dashboard\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Invalid password shows an authentication error and stays on login",
+    "description": "Verifies an incorrect password results in a visible error message and the user remains on the login page.",
+    "category": "User Authentication",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"cashier@example.invalid\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"WrongPassword123!\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"invalid\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Non-existent user shows an authentication error and stays on login",
+    "description": "Verifies a non-existent account cannot log in and an error is displayed without leaving /login.",
+    "category": "User Authentication",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"doesnotexist@example.invalid\" into the email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"SomePassword123!\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"error\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Missing email prevents login and shows a validation/auth error",
+    "description": "Verifies submitting the login form without an email does not log in and shows a visible error state.",
+    "category": "User Authentication",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"email\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Open a new shift successfully from the Shift page",
+    "description": "Verifies a cashier can open a shift with an initial cash amount and the status updates to OPEN.",
+    "category": "Shift Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Shift\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"Shift\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Open shift submit updates status to OPEN",
+    "description": "Verifies that submitting an initial cash amount completes shift opening and shows an OPEN active shift status.",
+    "category": "Shift Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Shift\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"100\" into the initial cash amount field"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "After opening a shift, active status shows OPEN on Shift page",
+    "description": "Verifies the Shift page displays the active shift as OPEN after a successful open shift submission.",
+    "category": "Shift Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Shift\" in the main navigation menu"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Open Shift\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Submit\" or \"Open\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Active shift status is visible on Shift page",
+    "description": "Verifies the Shift page shows an active shift status section that is visible to the user.",
+    "category": "Shift Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Shift\" in the main navigation menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Active shift status\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Open Shift\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Successful checkout with quantity adjustment and percent discount",
+    "description": "Verifies a cashier can add a product, adjust quantity via Smart Numpad, apply a percent discount, pay, and reach an invoice result screen.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product category tab or category option"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Adjust cart item quantity using Smart Numpad",
+    "description": "Verifies Smart Numpad can be opened and used to change the quantity of an item already in the cart.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product tile/card in the product grid"
+      },
+      {
+        "type": "action",
+        "description": "Click the cart item row to focus/select it"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Smart Numpad\" or \"Numpad\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Smart Numpad\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click a number on the numpad to set a larger quantity"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the selected cart item shows an updated quantity value"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Apply a fixed amount discount and verify total updates",
+    "description": "Verifies a fixed amount discount can be applied and the displayed total reflects the discount.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product tile/card in the product grid"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Discount\" button or discount input area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Discount\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"5\" into the discount amount field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Discount\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Total\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Complete checkout with a single payment method",
+    "description": "Verifies checkout submission succeeds with a single payment method and results in an invoice result view.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product tile/card in the product grid"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Payment method\" selector or payment method section"
+      },
+      {
+        "type": "action",
+        "description": "Select a single payment method option (for example, Cash or Card)"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Checkout\" or \"Submit\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invoice\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"View invoice\" or \"Invoice details\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Checkout blocked when no active shift is open",
+    "description": "Verifies the POS shows a validation error indicating an open shift is required when attempting to checkout without an active shift.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product tile/card in the product grid"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Payment method\" selector or payment method section"
+      },
+      {
+        "type": "action",
+        "description": "Select a single payment method option (for example, Cash or Card)"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Checkout\" or \"Submit\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"checkout requires open shift\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Split payment error when parts do not equal total",
+    "description": "Verifies split payment validation triggers when the entered split amounts do not match the transaction total.",
+    "category": "POS Checkout",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"POS\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/pos\""
+      },
+      {
+        "type": "action",
+        "description": "Click a product tile/card in the product grid"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Split payment\" option"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Split\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1\" into the first split amount field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add payment part\" or \"Add split\" button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1\" into the second split amount field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Checkout\" or \"Submit\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"split payment amounts do not equal total\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Create a new product and verify it appears in inventory list",
+    "description": "Verifies an authenticated user can create a product with name, price, and stock and see it listed in inventory.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Inventory\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Create Product\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Create Product\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Create product form validation for missing required fields",
+    "description": "Verifies the create product form shows validation errors when submitting without required fields.",
+    "category": "Inventory Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Inventory\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Create Product\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Submit\" or \"Create\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Cashier cannot create a product (authorization error)",
+    "description": "Verifies a CASHIER user is blocked from creating products and sees an authorization error message.",
+    "category": "Inventory Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"cashier_user@example.com\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"WrongOrPlaceholderPassword123!\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" or \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Wait for the page to finish loading"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Inventory\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Create Product\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not authorized\" or \"Permission\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "View invoice list and open an invoice detail page",
+    "description": "Verifies an authenticated user can view the invoice list and open an invoice detail view.",
+    "category": "Invoice Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invoice\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Filter invoices by status and open a filtered invoice detail",
+    "description": "Verifies status filtering updates the list and a filtered invoice can be opened in the detail view.",
+    "category": "Invoice Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Paid\" from the status filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Apply\" or \"Filter\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"invoice list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices/\""
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Filter invoices by date range and open an invoice detail",
+    "description": "Verifies date range filtering keeps the user on the invoices list and allows opening a resulting invoice detail.",
+    "category": "Invoice Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"2026-01-01\" into the \"From\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2026-12-31\" into the \"To\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Apply\" or \"Filter\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"invoice list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices/\""
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Invalid date range shows validation error and stays on invoice list",
+    "description": "Verifies the UI blocks an invalid date range (From later than To) and shows a visible validation message without leaving the list.",
+    "category": "Invoice Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"2026-12-31\" into the \"From\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2026-01-01\" into the \"To\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Apply\" or \"Filter\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid date range\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Clear status filter returns user to unfiltered invoice list view",
+    "description": "Verifies the user can remove a status filter and continue using the invoice list.",
+    "category": "Invoice Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Unpaid\" from the status filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Apply\" or \"Filter\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"invoice list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Clear\" or \"Reset filters\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"invoice list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Invoice list empty state after restrictive filters",
+    "description": "Verifies the invoices page shows a clear empty-state message when filters return no results.",
+    "category": "Invoice Management",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"1900-01-01\" into the \"From\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"1900-01-02\" into the \"To\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Apply\" or \"Filter\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No invoices\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Invoice detail view shows key sections and stays stable on refresh-like revisit",
+    "description": "Verifies opening an invoice detail shows key visible sections and can be re-opened from the list without losing context.",
+    "category": "Invoice Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Sign in\" or \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Total\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices/\""
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "View financial report for a selected period and valid date range",
+    "description": "Verifies a logged-in user can select a reporting period/date range and see aggregated charts and summary cards.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/reports\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Report period\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Select report period and date range then see chart and summary update",
+    "description": "Verifies submitting a chosen period/date range shows visible aggregated chart and summary cards for that selection.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Select \"This month\" from the report period dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Apply\" or \"Submit\" button for the period selection"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Add a new expense and see it reflected in the reports view",
+    "description": "Verifies an authorized user can add an expense entry and see it listed with totals reflecting the new entry.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Expense\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Expense\" form is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Submit expense form with typical valid values",
+    "description": "Verifies the expense creation form accepts valid inputs and confirms the new expense is visible in the list.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Expense\" button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Office supplies\" into the \"Description\" field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"25\" into the \"Amount\" field"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Expense appears in list after submission",
+    "description": "Verifies the UI shows a success state and the newly created expense entry is visible in the reports list.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Expense\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Submit\" or \"Save\" button on the expense form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Office supplies\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Invalid date range shows validation error (from date later than to date)",
+    "description": "Verifies the report filter prevents submission of an invalid date range and displays a visible validation error.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2099-12-31\" into the \"From\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2099-01-01\" into the \"To\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Apply\" or \"Submit\" button for the period selection"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "Validation error message is visible for invalid date range",
+    "description": "Verifies a clear, visible validation message is shown when the date range is invalid.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2099-12-31\" into the \"From\" date field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"2099-01-01\" into the \"To\" date field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"invalid date range\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Cashier role is blocked from adding an expense (role restriction)",
+    "description": "Verifies that a cashier cannot create an expense and an authorization error is shown.",
+    "category": "Financial Reporting and Expense/Income Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"cashier@example.invalid\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"WrongOrPlaceholderPassword1!\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Reports\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add Expense\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Submit\" or \"Save\" button on the expense form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"not authorized\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Admin can void an invoice and see status updated in invoice detail",
+    "description": "Verifies an admin user can void an order and the invoice detail view reflects the voided status.",
+    "category": "Admin Order Control",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Void Order\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Admin void order requires confirmation and shows voided state after confirming",
+    "description": "Verifies voiding an order prompts for confirmation and, after confirming, the UI shows the order as voided.",
+    "category": "Admin Order Control",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Void Order\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Confirm\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Void\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC035",
+    "title": "Admin can delete an invoice and it is removed from the invoices list",
+    "description": "Verifies an admin user can delete an order and the invoice no longer appears in the invoices list after deletion.",
+    "category": "Admin Order Control",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Delete Order\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Delete Order\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Confirm\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/invoices\""
+      }
+    ]
+  },
+  {
+    "id": "TC036",
+    "title": "Admin delete order can be canceled from confirmation dialog",
+    "description": "Verifies that canceling the delete confirmation leaves the invoice accessible and not deleted.",
+    "category": "Admin Order Control",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Delete Order\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Confirm\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Cancel\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Delete Order\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC037",
+    "title": "Admin void order can be canceled from confirmation dialog",
+    "description": "Verifies that canceling the void confirmation does not change the invoice to a voided state.",
+    "category": "Admin Order Control",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Void Order\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Confirm\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Cancel\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Void Order\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC038",
+    "title": "Cashier cannot void an order and sees an authorization error",
+    "description": "Verifies that a non-admin (cashier) user is blocked from voiding and an authorization error is shown.",
+    "category": "Admin Order Control",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"cashier_invalid_test_user@example.com\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"WrongPassword123!\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC039",
+    "title": "Non-admin user sees authorization error when attempting to void from invoice detail (pre-authenticated cashier)",
+    "description": "Verifies that when signed in as a cashier, attempting to void from invoice detail shows an authorization error and does not void the order.",
+    "category": "Admin Order Control",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Sign in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/dashboard\""
+      },
+      {
+        "type": "action",
+        "description": "Click \"Invoices\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the first invoice in the invoice list"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Void Order\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Confirm\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Unauthorized\" is visible"
+      }
+    ]
+  }
+]

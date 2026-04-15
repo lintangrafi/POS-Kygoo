@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { formatRupiah, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 type InvoiceOrder = {
     id: number;
@@ -48,6 +49,7 @@ export default function InvoiceMasterDetailClient({
     const [selectedId, setSelectedId] = useState<number | null>(orders[0]?.id ?? null);
     const [isDeletingId, setIsDeletingId] = useState<number | null>(null);
     const [isVoidingId, setIsVoidingId] = useState<number | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
     const visibleLimit = 8;
     const [page, setPage] = useState(1);
     const totalPages = Math.max(1, Math.ceil(orderRows.length / visibleLimit));
@@ -76,18 +78,22 @@ export default function InvoiceMasterDetailClient({
         return { dayLabel, dateLabel, timeLabel };
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Delete invoice permanently? This action cannot be undone.')) return;
-        setIsDeletingId(id);
+    const handleDelete = (id: number) => {
+        setDeleteConfirmId(id);
+    };
+
+    const confirmDelete = async () => {
+        if (deleteConfirmId === null) return;
+        setIsDeletingId(deleteConfirmId);
         try {
             const res = await fetch('/api/admin/delete-order', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ id }),
+                body: JSON.stringify({ id: deleteConfirmId }),
             });
             const data = await res.json();
             if (data.success) {
-                const next = orderRows.filter((o) => o.id !== id);
+                const next = orderRows.filter((o) => o.id !== deleteConfirmId);
                 setOrderRows(next);
                 if (next.length) {
                     setSelectedId(next[0].id);
@@ -103,6 +109,7 @@ export default function InvoiceMasterDetailClient({
             }
         } finally {
             setIsDeletingId(null);
+            setDeleteConfirmId(null);
         }
     };
 
@@ -317,6 +324,25 @@ export default function InvoiceMasterDetailClient({
                     </div>
                 </div>
             </div>
+
+            <Dialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Delete Order</DialogTitle>
+                    </DialogHeader>
+                    <div className="text-sm text-muted-foreground">
+                        Delete invoice permanently? This action cannot be undone.
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>
+                            Cancel
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDelete}>
+                            Confirm
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

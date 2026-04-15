@@ -21,9 +21,10 @@ type Expense = {
     user?: { name: string };
 };
 
-export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
+export function ExpenseManagement({ expenses, role }: { expenses: Expense[]; role: 'CASHIER' | 'ADMIN' | 'SUPERADMIN' }) {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isAdmin = role === 'ADMIN' || role === 'SUPERADMIN';
     const visibleLimit = 6;
     const [page, setPage] = useState(1);
     const totalPages = Math.max(1, Math.ceil(expenses.length / visibleLimit));
@@ -32,6 +33,10 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
 
     const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!isAdmin) {
+            alert('Only admins can add expenses');
+            return;
+        }
         setIsSubmitting(true);
 
         const formData = new FormData(e.currentTarget);
@@ -56,6 +61,10 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
     };
 
     const handleDelete = async (id: number) => {
+        if (!isAdmin) {
+            alert('Only admins can delete expenses');
+            return;
+        }
         if (!confirm('Delete this expense?')) return;
         
         try {
@@ -77,10 +86,15 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
                 <div>
                     <h3 className="text-lg font-semibold text-[#1F1D1A]">Daily Expenses</h3>
                     <p className="text-xs text-[#6F6659]">Catat pengeluaran operasional harian.</p>
+                    {!isAdmin && (
+                        <p className="text-xs text-[#8B1A1A]">Not authorized</p>
+                    )}
                 </div>
                 <Button
                     className="rounded-full border border-[#E6DED0] bg-white text-[#1F1D1A] hover:bg-[#F8F3EA]"
                     onClick={() => setIsAddOpen(true)}
+                    disabled={!isAdmin}
+                    title={isAdmin ? 'Add expense' : 'Only admins can add expenses'}
                 >
                     + Add Expense
                 </Button>
@@ -111,13 +125,15 @@ export function ExpenseManagement({ expenses }: { expenses: Expense[] }) {
                             </div>
                             <div className="flex items-center gap-3">
                                 <div className="text-sm font-semibold text-[#C3472E]">-{formatRupiah(Number(expense.amount))}</div>
-                                <button
-                                    onClick={() => handleDelete(expense.id)}
-                                    className="text-xs text-[#C3472E] hover:text-[#9C3724]"
-                                    title="Delete expense"
-                                >
-                                    Delete
-                                </button>
+                                {isAdmin && (
+                                    <button
+                                        onClick={() => handleDelete(expense.id)}
+                                        className="text-xs text-[#C3472E] hover:text-[#9C3724]"
+                                        title="Delete expense"
+                                    >
+                                        Delete
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}

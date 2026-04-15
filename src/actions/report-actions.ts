@@ -5,6 +5,14 @@ import { orders, orderItems, payments, products, shifts, expenses, incomes } fro
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 
+function formatLocalDateKey(input: Date | string | number): string {
+    const d = new Date(input);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 export async function getFinancialReport({ from, to }: { from: Date; to: Date }) {
     await verifySession();
 
@@ -47,7 +55,7 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     // Daily revenue (simple grouping by date)
     const dailyRevenue: Record<string, number> = {};
     for (const o of ordersInRange) {
-        const d = new Date(o.createdAt).toISOString().slice(0, 10);
+        const d = formatLocalDateKey(o.createdAt);
         const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
         dailyRevenue[d] = (dailyRevenue[d] || 0) + paid;
     }
@@ -317,7 +325,7 @@ export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
 
     // Process orders (from payment breakdown)
     for (const order of ordersInRange) {
-        const dateStr = new Date(order.createdAt).toISOString().slice(0, 10);
+        const dateStr = formatLocalDateKey(order.createdAt);
         if (!dailyCashflow[dateStr]) {
             dailyCashflow[dateStr] = {
                 date: dateStr,
@@ -346,7 +354,7 @@ export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
 
     // Process expenses
     for (const expense of expensesInRange) {
-        const dateStr = new Date(expense.date).toISOString().slice(0, 10);
+        const dateStr = formatLocalDateKey(expense.date);
         if (!dailyCashflow[dateStr]) {
             dailyCashflow[dateStr] = {
                 date: dateStr,
@@ -372,7 +380,7 @@ export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
 
     // Process incomes
     for (const income of incomesInRange) {
-        const dateStr = new Date(income.date).toISOString().slice(0, 10);
+        const dateStr = formatLocalDateKey(income.date);
         if (!dailyCashflow[dateStr]) {
             dailyCashflow[dateStr] = {
                 date: dateStr,

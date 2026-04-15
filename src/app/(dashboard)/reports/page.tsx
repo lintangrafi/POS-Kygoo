@@ -9,15 +9,18 @@ import { IncomeManagement } from '@/components/reports/IncomeManagement';
 import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { verifySession } from '@/lib/auth';
 
-export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string } }) {
+export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`
     const sp = await (searchParams as any);
+    const session = await verifySession();
 
     // period: 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' (default today)
     const period = (sp?.period as 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom') || 'today';
     const selectedDay = sp?.day ? Number(sp.day) : null; // 0=Mon..6=Sun
     const selectedWeek = sp?.week ? Number(sp.week) : null; // 1..5
+    const selectedDailyDate = sp?.dailyDate;
 
     // parse date range from query params or default based on period
     const today = new Date();
@@ -25,6 +28,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     
     let from: Date, to: Date;
     
+    const dateRangeError = sp?.from && sp?.to && new Date(sp.from).getTime() > new Date(sp.to).getTime()
+        ? 'Invalid date range'
+        : '';
+
     if (sp?.from && sp?.to) {
         // Use provided dates
         from = new Date(sp.from);
@@ -35,6 +42,13 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             from = today;
             to = today;
         } else if (period === 'daily') {
+            if (selectedDailyDate) {
+                const [year, month, day] = selectedDailyDate.split('-').map(Number);
+                const pickedDate = new Date(year, (month || 1) - 1, day || 1);
+                pickedDate.setHours(0, 0, 0, 0);
+                from = pickedDate;
+                to = pickedDate;
+            } else {
             const jsDay = today.getDay(); // 0=Sun..6=Sat
             const mondayOffset = (jsDay + 6) % 7;
             const weekStart = new Date(today);
@@ -43,10 +57,11 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
 
             if (selectedDay !== null && selectedDay >= 0 && selectedDay <= 6) {
                 from = new Date(weekStart.getTime() + selectedDay * 24 * 60 * 60 * 1000);
-                to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+                to = new Date(from);
             } else {
-                from = weekStart;
-                to = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+                from = today;
+                to = today;
+            }
             }
         } else if (period === 'weekly') {
             const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -56,13 +71,14 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
 
             if (selectedWeek && selectedWeek >= 1 && selectedWeek <= 5) {
                 from = new Date(monthStart.getTime() + (selectedWeek - 1) * 7 * 24 * 60 * 60 * 1000);
-                to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
-                if (to > nextMonthStart) {
-                    to = nextMonthStart;
+                to = new Date(from.getTime() + 6 * 24 * 60 * 60 * 1000);
+                const monthLastDay = new Date(nextMonthStart.getTime() - 24 * 60 * 60 * 1000);
+                if (to > monthLastDay) {
+                    to = monthLastDay;
                 }
             } else {
                 from = monthStart;
-                to = nextMonthStart;
+                to = new Date(nextMonthStart.getTime() - 24 * 60 * 60 * 1000);
             }
         } else if (period === 'monthly') {
             from = new Date(today.getTime() - 11 * 30 * 24 * 60 * 60 * 1000);
@@ -77,7 +93,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
         }
     }
     
-    const toInclusive = new Date(to.getTime() + 1000 * 60 * 60 * 24); // include end day
+    const toInclusive = new Date(to.getTime() + 1000 * 60 * 60 * 24); // convert inclusive end date to exclusive upper bound
 
     // Always fetch financial report for the selected range so metrics reflect the period
     const r = await getFinancialReport({ from, to: toInclusive });
@@ -131,7 +147,23 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 </div>
             </div>
 
+            {dateRangeError && (
+                <div className="rounded-md border border-[#F2C6C6] bg-[#FFF1F1] px-3 py-2 text-xs text-[#8B1A1A]">
+                    {dateRangeError}
+                </div>
+            )}
             <form method="get" className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
+                {period === 'daily' && (
+                    <div>
+                        <label className="text-sm text-[#6F6659]">Date</label>
+                        <input
+                            name="dailyDate"
+                            type="date"
+                            defaultValue={selectedDailyDate || `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}-${String(from.getDate()).padStart(2, '0')}`}
+                            className="mt-1 block rounded-md border border-[#DCCFBF] bg-white px-3 py-2"
+                        />
+                    </div>
+                )}
                 {period === 'custom' && (
                     <>
                         <div>
@@ -165,7 +197,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         };
                         const ranges: Record<string, [Date, Date]> = {
                             today: [today, today], // today only
-                            daily: [new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000), today], // last 7 days with daily aggregation
+                            daily: [today, today], // single-day daily report
                             weekly: [new Date(today.getTime() - 6 * 7 * 24 * 60 * 60 * 1000), today], // last 7 weeks
                             monthly: [new Date(today.getTime() - 11 * 30 * 24 * 60 * 60 * 1000), today], // last 12 months
                             yearly: [new Date(today.getTime() - 4 * 365 * 24 * 60 * 60 * 1000), today], // last 5 years
@@ -175,7 +207,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         return (
                             <>
                                 <a title="Show today's report" href={`?period=today&from=${fmt(dToday[0])}&to=${fmt(dToday[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Today</a>
-                                <a title="Show daily aggregates" href={`?period=daily&from=${fmt(dDaily[0])}&to=${fmt(dDaily[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
+                                <a title="Show daily report" href={`?period=daily&dailyDate=${fmt(dDaily[0])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
                                 <a title="Show weekly aggregates" href={`?period=weekly&from=${fmt(dWeekly[0])}&to=${fmt(dWeekly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Weekly</a>
                                 <a title="Show monthly aggregates" href={`?period=monthly&from=${fmt(dMonthly[0])}&to=${fmt(dMonthly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Monthly</a>
                                 <a title="Show yearly aggregates" href={`?period=yearly&from=${fmt(dYearly[0])}&to=${fmt(dYearly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'yearly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Yearly</a>
@@ -185,8 +217,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     })()
                 }
             </div>
-
-            {period === 'daily' && (
+            {period === 'daily' && !selectedDailyDate && (
                 <div className="flex flex-wrap gap-2">
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, idx) => (
                         <a
@@ -289,7 +320,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <CardTitle>Expense Management</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseManagement expenses={expensesList as any} />
+                        <ExpenseManagement expenses={expensesList as any} role={session.role} />
                     </CardContent>
                 </Card>
                 <Card className="border-[#E6DED0] bg-white">
@@ -297,7 +328,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <CardTitle>Income Management</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <IncomeManagement incomes={incomesList as any} />
+                        <IncomeManagement incomes={incomesList as any} role={session.role} />
                     </CardContent>
                 </Card>
             </div>

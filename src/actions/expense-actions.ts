@@ -6,12 +6,13 @@ import { and, gte, lt, desc, eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
-export async function getExpenses({ from, to }: { from?: Date; to?: Date }) {
+export async function getExpenses({ from, to, eventId }: { from?: Date; to?: Date; eventId?: number }) {
     const session = await verifySession();
 
     const conditions: any[] = [];
     if (from) conditions.push(gte(expenses.date, from));
     if (to) conditions.push(lt(expenses.date, to));
+    if (eventId) conditions.push(eq(expenses.eventId, eventId));
 
     const result = await db.query.expenses.findMany({
         where: conditions.length > 0 ? and(...conditions) : undefined,
@@ -32,6 +33,7 @@ export async function addExpense(data: {
     paymentMethod: 'CASH' | 'QRIS';
     date: Date;
     notes?: string;
+    eventId?: number | null;
 }) {
     const session = await verifySession();
 
@@ -45,6 +47,7 @@ export async function addExpense(data: {
         amount: data.amount.toString(),
         category: data.category,
         paymentMethod: data.paymentMethod,
+        eventId: data.eventId ?? null,
         date: data.date,
         notes: data.notes || null,
     }).returning();
@@ -69,6 +72,7 @@ export async function updateExpense(id: number, data: {
     paymentMethod?: 'CASH' | 'QRIS';
     date?: Date;
     notes?: string;
+    eventId?: number | null;
 }) {
     const session = await verifySession();
 
@@ -89,6 +93,7 @@ export async function updateExpense(id: number, data: {
     if (data.amount !== undefined) updates.amount = data.amount.toString();
     if (data.category !== undefined) updates.category = data.category;
     if (data.paymentMethod !== undefined) updates.paymentMethod = data.paymentMethod;
+    if (data.eventId !== undefined) updates.eventId = data.eventId;
     if (data.date !== undefined) updates.date = data.date;
     if (data.notes !== undefined) updates.notes = data.notes;
 

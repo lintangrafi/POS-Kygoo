@@ -21,7 +21,22 @@ type Income = {
     user?: { name: string };
 };
 
-export function IncomeManagement({ incomes, role }: { incomes: Income[]; role: 'CASHIER' | 'ADMIN' | 'SUPERADMIN' }) {
+type EventOption = {
+    id: number;
+    name: string;
+};
+
+export function IncomeManagement({
+    incomes,
+    role,
+    eventOptions = [],
+    defaultEventId = null,
+}: {
+    incomes: Income[];
+    role: 'CASHIER' | 'ADMIN' | 'SUPERADMIN';
+    eventOptions?: EventOption[];
+    defaultEventId?: number | null;
+}) {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const isAdmin = role === 'ADMIN' || role === 'SUPERADMIN';
@@ -47,6 +62,7 @@ export function IncomeManagement({ incomes, role }: { incomes: Income[]; role: '
                 amount: parseFloat(formData.get('amount') as string),
                 category: formData.get('category') as 'SERVICE' | 'REFUND' | 'OTHER',
                 paymentMethod: formData.get('paymentMethod') as 'CASH' | 'QRIS',
+                eventId: formData.get('eventId') ? Number(formData.get('eventId')) : null,
                 date: new Date(formData.get('date') as string),
                 notes: formData.get('notes') as string || undefined,
             });
@@ -216,6 +232,21 @@ export function IncomeManagement({ incomes, role }: { incomes: Income[]; role: '
                             >
                                 <option value="CASH">Cash</option>
                                 <option value="QRIS">QRIS</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <Label htmlFor="eventId">Event</Label>
+                            <select
+                                id="eventId"
+                                name="eventId"
+                                defaultValue={defaultEventId ?? ''}
+                                className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                            >
+                                <option value="">No event</option>
+                                {eventOptions.map((event) => (
+                                    <option key={event.id} value={event.id}>{event.name}</option>
+                                ))}
                             </select>
                         </div>
 

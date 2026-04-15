@@ -1,5 +1,6 @@
 import { getOpenShift } from '@/actions/shift-actions';
 import { getOpenBills, getPosData } from '@/actions/pos-actions';
+import { getActiveEvent, getEventOptions } from '@/actions/event-actions';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartSidebar } from '@/components/pos/CartSidebar';
 
@@ -10,6 +11,10 @@ export default async function POSPage() {
     // Fetch initial data
     const { categories, products } = await getPosData();
     const initialOpenBills = await getOpenBills();
+    const [eventOptions, activeEvent] = await Promise.all([
+        getEventOptions(),
+        getActiveEvent(),
+    ]);
 
     return (
         <div className="h-[calc(100dvh-2rem)] lg:h-[100dvh] space-y-4 rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4">
@@ -40,7 +45,12 @@ export default async function POSPage() {
 
                 {/* Sidebar Cart Area */}
                 <div className="w-full lg:w-[420px] xl:w-[460px] shrink-0 border-t lg:border-t-0 lg:border-l border-[#E6DED0] bg-white overflow-auto lg:h-full max-h-[45dvh] lg:max-h-none">
-                    <CartSidebar initialOpenBills={initialOpenBills} isShiftOpen={isShiftOpen} />
+                    <CartSidebar
+                        initialOpenBills={initialOpenBills}
+                        isShiftOpen={isShiftOpen}
+                        initialEventOptions={eventOptions}
+                        activeEventId={activeEvent?.id ?? null}
+                    />
                 </div>
             </div>
         </div>

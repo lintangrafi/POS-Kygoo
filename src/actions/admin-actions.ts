@@ -121,6 +121,7 @@ export async function getOrders({ limit = 50, from, to }: { limit?: number; from
         limit,
         with: {
             user: true,
+            event: true,
             items: { with: { product: true } },
             payments: true,
         }
@@ -140,6 +141,7 @@ export async function getOrderById(id: number) {
         where: eq(orders.id, id),
         with: {
             user: true,
+            event: true,
             items: { with: { product: true } },
             payments: true,
         }

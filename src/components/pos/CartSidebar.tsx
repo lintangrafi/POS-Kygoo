@@ -32,9 +32,18 @@ type OpenBillListItem = {
     cashierName: string;
 };
 
+type EventOption = {
+    id: number;
+    name: string;
+    startDate: Date;
+    endDate: Date;
+};
+
 interface CartSidebarProps {
     initialOpenBills?: OpenBillListItem[];
     isShiftOpen?: boolean;
+    initialEventOptions?: EventOption[];
+    activeEventId?: number | null;
 }
 
 type CheckoutReceipt = {
@@ -50,7 +59,12 @@ type CheckoutReceipt = {
 // Custom simple toast/alert since we didn't fully setup Toaster
 const notify = (msg: string) => alert(msg);
 
-export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartSidebarProps) {
+export function CartSidebar({
+    initialOpenBills = [],
+    isShiftOpen = true,
+    initialEventOptions = [],
+    activeEventId = null,
+}: CartSidebarProps) {
     const {
         cart,
         removeFromCart,
@@ -64,6 +78,8 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedToDelete, setSelectedToDelete] = useState<Record<number, boolean>>({});
     const [openBills, setOpenBills] = useState<OpenBillListItem[]>(initialOpenBills);
+    const [eventOptions] = useState<EventOption[]>(initialEventOptions);
+    const [selectedEventId, setSelectedEventId] = useState<number | null>(activeEventId);
     const [isLoadingOpenBills, setIsLoadingOpenBills] = useState(false);
     const [isSavingOpenBill, setIsSavingOpenBill] = useState(false);
     const [isVoidingOpenBillId, setIsVoidingOpenBillId] = useState<number | null>(null);
@@ -137,6 +153,10 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
             setIsProcessing(false); // Reset processing flag when modal closes
         }
     }, [isPaymentModalOpen, totalAfterDiscount]);
+
+    useEffect(() => {
+        setSelectedEventId(activeEventId ?? null);
+    }, [activeEventId]);
 
     // Numpad target for split behavior
     const [numpadTarget, setNumpadTarget] = useState<'CASH'|'NONCASH'|'DOWN_PAYMENT'|'DEFAULT'>('DEFAULT');
@@ -388,6 +408,7 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
                         discountAmount,
                         discountPercent,
                         totalAmount: totalAfterDiscount,
+                        eventId: selectedEventId,
                     })
                     : await processTransaction({
                         items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
@@ -396,6 +417,7 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
                         discountAmount,
                         discountPercent,
                         totalAmount: totalAfterDiscount,
+                        eventId: selectedEventId,
                     });
 
                 if (result.success) {
@@ -444,6 +466,7 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
                     discountAmount,
                     discountPercent,
                     totalAmount: totalAfterDiscount,
+                    eventId: selectedEventId,
                 })
                 : await processTransaction({
                     items: cart.map(i => ({ productId: i.id, quantity: i.quantity, price: Number(i.price) })),
@@ -455,6 +478,7 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
                     discountAmount,
                     discountPercent,
                     totalAmount: totalAfterDiscount,
+                    eventId: selectedEventId,
                 });
 
             if (result.success) {
@@ -831,6 +855,18 @@ export function CartSidebar({ initialOpenBills = [], isShiftOpen = true }: CartS
                                     placeholder="Catatan bill"
                                     className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
                                 />
+                                <select
+                                    value={selectedEventId ?? ''}
+                                    onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
+                                    className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
+                                >
+                                    <option value="">No event</option>
+                                    {eventOptions.map((event) => (
+                                        <option key={event.id} value={event.id}>
+                                            {event.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="flex-shrink-0 grid grid-cols-3 gap-2">

@@ -20,6 +20,19 @@ export const users = pgTable('users', {
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Events Table
+export const events = pgTable('events', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    startDate: timestamp('start_date').notNull(),
+    endDate: timestamp('end_date').notNull(),
+    notes: text('notes'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdBy: integer('created_by').references(() => users.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Categories Table
 export const categories = pgTable('categories', {
     id: serial('id').primaryKey(),
@@ -65,6 +78,7 @@ export const orders = pgTable('orders', {
     discountPercent: decimal('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
     totalAmount: decimal('total_amount', { precision: 12, scale: 2 }).notNull(),
     status: orderStatusEnum('status').default('COMPLETED').notNull(),
+    eventId: integer('event_id').references(() => events.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -126,6 +140,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     user: one(users, {
         fields: [orders.userId],
         references: [users.id],
+    }),
+    event: one(events, {
+        fields: [orders.eventId],
+        references: [events.id],
     }),
     items: many(orderItems),
     payments: many(payments),
@@ -232,6 +250,7 @@ export const expenses = pgTable('expenses', {
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
     category: expenseCategoryEnum('category').default('OTHER').notNull(),
     paymentMethod: transactionPaymentMethodEnum('payment_method').default('CASH').notNull(), // CASH or QRIS
+    eventId: integer('event_id').references(() => events.id),
     date: timestamp('date').notNull(), // Date of the expense
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -241,6 +260,10 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
     user: one(users, {
         fields: [expenses.userId],
         references: [users.id],
+    }),
+    event: one(events, {
+        fields: [expenses.eventId],
+        references: [events.id],
     }),
 }));
 
@@ -253,6 +276,7 @@ export const incomes = pgTable('incomes', {
     amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
     category: incomeCategoryEnum('category').default('OTHER').notNull(),
     paymentMethod: transactionPaymentMethodEnum('payment_method').default('CASH').notNull(), // CASH or QRIS
+    eventId: integer('event_id').references(() => events.id),
     date: timestamp('date').notNull(), // Date of the income
     notes: text('notes'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -263,6 +287,20 @@ export const incomesRelations = relations(incomes, ({ one }) => ({
         fields: [incomes.userId],
         references: [users.id],
     }),
+    event: one(events, {
+        fields: [incomes.eventId],
+        references: [events.id],
+    }),
+}));
+
+export const eventsRelations = relations(events, ({ one, many }) => ({
+    createdByUser: one(users, {
+        fields: [events.createdBy],
+        references: [users.id],
+    }),
+    orders: many(orders),
+    expenses: many(expenses),
+    incomes: many(incomes),
 }));
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({

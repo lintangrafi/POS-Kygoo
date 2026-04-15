@@ -2,6 +2,7 @@ import { getAuditLogs } from '@/actions/admin-actions';
 import { getFinancialReport, getTopProducts, getAggregatedRevenue, getDailyCashflow } from '@/actions/report-actions';
 import { getExpenses } from '@/actions/expense-actions';
 import { getIncomes } from '@/actions/income-actions';
+import { getActiveEvent, getEventOptions } from '@/actions/event-actions';
 import TrendChart from '@/components/reports/TrendChart';
 import BarChart from '@/components/reports/BarChart';
 import { ExpenseManagement } from '@/components/reports/ExpenseManagement';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { verifySession } from '@/lib/auth';
 
-export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string } }) {
+export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`
     const sp = await (searchParams as any);
     const session = await verifySession();
@@ -21,6 +22,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     const selectedDay = sp?.day ? Number(sp.day) : null; // 0=Mon..6=Sun
     const selectedWeek = sp?.week ? Number(sp.week) : null; // 1..5
     const selectedDailyDate = sp?.dailyDate;
+    const selectedEventId = sp?.eventId ? Number(sp.eventId) : null;
 
     // parse date range from query params or default based on period
     const today = new Date();
@@ -96,27 +98,66 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     const toInclusive = new Date(to.getTime() + 1000 * 60 * 60 * 24); // convert inclusive end date to exclusive upper bound
 
     // Always fetch financial report for the selected range so metrics reflect the period
-    const r = await getFinancialReport({ from, to: toInclusive });
+    const r = await getFinancialReport({
+        from,
+        to: toInclusive,
+        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+    });
 
     // fetch audit logs filtered by selected range (limit to 10 for reports)
     const logs = await getAuditLogs({ from, to: toInclusive, limit: 10 });
 
     // fetch expenses filtered by selected range
-    const expensesList = await getExpenses({ from, to: toInclusive });
+    const expensesList = await getExpenses({
+        from,
+        to: toInclusive,
+        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+    });
 
     // fetch incomes filtered by selected range
-    const incomesList = await getIncomes({ from, to: toInclusive });
+    const incomesList = await getIncomes({
+        from,
+        to: toInclusive,
+        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+    });
+
+    const [eventOptions, activeEvent] = await Promise.all([
+        getEventOptions(),
+        getActiveEvent(),
+    ]);
 
     // fetch daily cashflow detailed breakdown
-    const dailyCashflow = await getDailyCashflow({ from, to: toInclusive });
+    const dailyCashflow = await getDailyCashflow({
+        from,
+        to: toInclusive,
+        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+    });
 
     // aggregated series used for charts when not custom/today (except weekly, which should show daily)
     let aggregated: { period: string; amount: number; paymentsBreakdown: Record<string, number>; ordersCount: number; cashInDrawer: number; expenses: number }[] | null = null;
     if (period !== 'custom' && period !== 'today' && period !== 'weekly') {
-        aggregated = await getAggregatedRevenue({ from, to: toInclusive, period });
+        aggregated = await getAggregatedRevenue({
+            from,
+            to: toInclusive,
+            period,
+            eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+        });
     }
 
-    const topProducts = await getTopProducts({ from, to: toInclusive, limit: 10 });
+    const topProducts = await getTopProducts({
+        from,
+        to: toInclusive,
+        limit: 10,
+        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
+    });
+
+    const fmtDate = (d: Date) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+    const exportBase = `/api/reports/export?from=${fmtDate(from)}&to=${fmtDate(to)}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`;
 
     // Trend data: weekly should show daily trend, otherwise use aggregated or daily revenue
     const dailyTrend = Object.entries(r?.dailyRevenue || {}).map(([period, amount]) => ({ period, amount: Number(amount) }));
@@ -141,9 +182,11 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     <p className="text-sm text-[#6F6659]">Analisis revenue, expense, dan profit untuk keputusan operasional harian.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <a href={`?period=today`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
-                    <a href={`?period=weekly`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
-                    <a href={`?period=monthly`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
+                    <a href={`${exportBase}&format=csv`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export CSV</a>
+                    <a href={`${exportBase}&format=pdf`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export PDF</a>
+                    <a href={`?period=today${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
+                    <a href={`?period=weekly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
+                    <a href={`?period=monthly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
                 </div>
             </div>
 
@@ -164,6 +207,21 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         />
                     </div>
                 )}
+                <div>
+                    <label className="text-sm text-[#6F6659]">Event</label>
+                    <select
+                        name="eventId"
+                        defaultValue={selectedEventId ? String(selectedEventId) : ''}
+                        className="mt-1 block rounded-md border border-[#DCCFBF] bg-white px-3 py-2"
+                    >
+                        <option value="">All Events</option>
+                        {eventOptions.map((event) => (
+                            <option key={event.id} value={String(event.id)}>
+                                {event.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 {period === 'custom' && (
                     <>
                         <div>
@@ -206,12 +264,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         const dToday = ranges.today; const dDaily = ranges.daily; const dWeekly = ranges.weekly; const dMonthly = ranges.monthly; const dYearly = ranges.yearly;
                         return (
                             <>
-                                <a title="Show today's report" href={`?period=today&from=${fmt(dToday[0])}&to=${fmt(dToday[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Today</a>
-                                <a title="Show daily report" href={`?period=daily&dailyDate=${fmt(dDaily[0])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
-                                <a title="Show weekly aggregates" href={`?period=weekly&from=${fmt(dWeekly[0])}&to=${fmt(dWeekly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Weekly</a>
-                                <a title="Show monthly aggregates" href={`?period=monthly&from=${fmt(dMonthly[0])}&to=${fmt(dMonthly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Monthly</a>
-                                <a title="Show yearly aggregates" href={`?period=yearly&from=${fmt(dYearly[0])}&to=${fmt(dYearly[1])}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'yearly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Yearly</a>
-                                <a title="Show custom range" href={`?period=custom&from=${fmt(from)}&to=${fmt(to)}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'custom' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Custom range</a>
+                                <a title="Show today's report" href={`?period=today&from=${fmt(dToday[0])}&to=${fmt(dToday[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Today</a>
+                                <a title="Show daily report" href={`?period=daily&dailyDate=${fmt(dDaily[0])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
+                                <a title="Show weekly aggregates" href={`?period=weekly&from=${fmt(dWeekly[0])}&to=${fmt(dWeekly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Weekly</a>
+                                <a title="Show monthly aggregates" href={`?period=monthly&from=${fmt(dMonthly[0])}&to=${fmt(dMonthly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Monthly</a>
+                                <a title="Show yearly aggregates" href={`?period=yearly&from=${fmt(dYearly[0])}&to=${fmt(dYearly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'yearly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Yearly</a>
+                                <a title="Show custom range" href={`?period=custom&from=${fmt(from)}&to=${fmt(to)}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'custom' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Custom range</a>
                             </>
                         );
                     })()
@@ -222,7 +280,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, idx) => (
                         <a
                             key={label}
-                            href={`?period=daily&day=${idx}`}
+                            href={`?period=daily&day=${idx}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${selectedDay === idx ? 'bg-[#1F1D1A] text-white border-[#1F1D1A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}
                         >
                             {label}
@@ -236,7 +294,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     {[1, 2, 3, 4, 5].map((week) => (
                         <a
                             key={week}
-                            href={`?period=weekly&week=${week}`}
+                            href={`?period=weekly&week=${week}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${selectedWeek === week ? 'bg-[#1F1D1A] text-white border-[#1F1D1A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}
                         >
                             Week {week}
@@ -320,7 +378,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <CardTitle>Expense Management</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <ExpenseManagement expenses={expensesList as any} role={session.role} />
+                        <ExpenseManagement
+                            expenses={expensesList as any}
+                            role={session.role}
+                            eventOptions={eventOptions}
+                            defaultEventId={activeEvent?.id ?? null}
+                        />
                     </CardContent>
                 </Card>
                 <Card className="border-[#E6DED0] bg-white">
@@ -328,7 +391,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <CardTitle>Income Management</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <IncomeManagement incomes={incomesList as any} role={session.role} />
+                        <IncomeManagement
+                            incomes={incomesList as any}
+                            role={session.role}
+                            eventOptions={eventOptions}
+                            defaultEventId={activeEvent?.id ?? null}
+                        />
                     </CardContent>
                 </Card>
             </div>

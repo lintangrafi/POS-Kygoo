@@ -15,6 +15,7 @@ type CheckoutPayload = {
     discountAmount: number;
     discountPercent: number;
     totalAmount: number;
+    eventId?: number | null;
 };
 
 type SaveOpenBillPayload = {
@@ -59,6 +60,7 @@ export async function processTransaction(data: {
     discountAmount: number;
     discountPercent: number;
     totalAmount: number;
+    eventId?: number | null;
 }) {
     return createCompletedOrder(data);
 }
@@ -83,6 +85,7 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                 discountPercent: data.discountPercent.toString(),
                 totalAmount: data.totalAmount.toString(),
                 status: 'COMPLETED',
+                eventId: data.eventId ?? null,
             }).returning();
 
             for (const item of data.items) {
@@ -137,6 +140,7 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                     discountPercent: data.discountPercent,
                     total: data.totalAmount,
                     openBillId,
+                    eventId: data.eventId ?? null,
                 }),
             });
 

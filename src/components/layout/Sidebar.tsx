@@ -13,6 +13,7 @@ import {
     Package,
     ClipboardList,
     FileText,
+    CalendarDays,
     Menu,
     X,
     ChevronLeft,
@@ -65,6 +66,12 @@ export function Sidebar({ role }: SidebarProps) {
             href: '/invoices',
             label: 'Invoices',
             icon: FileText,
+            roles: ['ADMIN', 'SUPERADMIN'],
+        },
+        {
+            href: '/events',
+            label: 'Events',
+            icon: CalendarDays,
             roles: ['ADMIN', 'SUPERADMIN'],
         },
         {

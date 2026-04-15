@@ -15,6 +15,7 @@ type InvoiceOrder = {
     totalAmount?: number | string;
     payments?: { method?: string; amount?: number | string }[];
     user?: { name?: string } | null;
+    event?: { id: number; name: string } | null;
     items?: {
         product?: { name?: string } | null;
         productName?: string | null;
@@ -178,6 +179,11 @@ export default function InvoiceMasterDetailClient({
                                     >
                                         <td className="px-2 py-2">
                                             <div className="font-medium text-[#1F1D1A]">{order.invoiceNumber}</div>
+                                            {order.event?.name && (
+                                                <div className="mt-1 inline-flex rounded-full border border-[#DCCFBF] bg-[#FFF6E7] px-2 py-0.5 text-[10px] font-semibold text-[#8C4A1D]">
+                                                    Event: {order.event.name}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-2 py-2">{order.user?.name || '-'}</td>
                                         <td className="px-2 py-2">
@@ -270,6 +276,11 @@ export default function InvoiceMasterDetailClient({
                     {selectedOrder && (selectedOrder.payments || []).length > 1 && (
                         <div className="inline-flex w-fit items-center rounded-full border border-[#DCCFBF] bg-[#FFF6E7] px-3 py-1 text-xs font-semibold text-[#C86B2A]">
                             Split Bill ({selectedOrder.payments?.length} metode)
+                        </div>
+                    )}
+                    {selectedOrder?.event?.name && (
+                        <div className="inline-flex w-fit items-center rounded-full border border-[#DCCFBF] bg-[#FFF6E7] px-3 py-1 text-xs font-semibold text-[#8C4A1D]">
+                            Event: {selectedOrder.event.name}
                         </div>
                     )}
                     {selectedOpenBill && downPaymentAmount > 0 && (

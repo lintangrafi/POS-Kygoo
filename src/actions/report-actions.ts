@@ -13,14 +13,15 @@ function formatLocalDateKey(input: Date | string | number): string {
     return `${year}-${month}-${day}`;
 }
 
-export async function getFinancialReport({ from, to }: { from: Date; to: Date }) {
+export async function getFinancialReport({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
     await verifySession();
 
     const ordersInRange = await db.query.orders.findMany({
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
-            eq(orders.status, 'COMPLETED')
+            eq(orders.status, 'COMPLETED'),
+            eventId ? eq(orders.eventId, eventId) : undefined
         ),
         with: {
             items: true,
@@ -61,16 +62,18 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     }
 
     // Include shift totals (reported cash) that ended in the range
-    const shiftsInRange = await db.query.shifts.findMany({
-        where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
-            const conds: any[] = [];
-            if (from) conds.push(gteOp(s.endTime, from));
-            if (to) conds.push(ltOp(s.endTime, to));
-            if (conds.length === 0) return undefined;
-            conds.push(eqOp(s.status, 'CLOSED'));
-            return andOp(...conds);
-        },
-    });
+    const shiftsInRange = eventId
+        ? []
+        : await db.query.shifts.findMany({
+            where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
+                const conds: any[] = [];
+                if (from) conds.push(gteOp(s.endTime, from));
+                if (to) conds.push(ltOp(s.endTime, to));
+                if (conds.length === 0) return undefined;
+                conds.push(eqOp(s.status, 'CLOSED'));
+                return andOp(...conds);
+            },
+        });
 
     const totalCashInDrawer = shiftsInRange.reduce((acc, s) => acc + Number(s.totalCashReceived || 0), 0);
 
@@ -78,7 +81,8 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     const expensesInRange = await db.query.expenses.findMany({
         where: and(
             gte(expenses.date, from),
-            lt(expenses.date, to)
+            lt(expenses.date, to),
+            eventId ? eq(expenses.eventId, eventId) : undefined
         ),
         with: {
             user: true,
@@ -96,7 +100,8 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     const incomesInRange = await db.query.incomes.findMany({
         where: and(
             gte(incomes.date, from),
-            lt(incomes.date, to)
+            lt(incomes.date, to),
+            eventId ? eq(incomes.eventId, eventId) : undefined
         ),
         with: {
             user: true,
@@ -131,12 +136,17 @@ export async function getFinancialReport({ from, to }: { from: Date; to: Date })
     };
 }
 
-export async function getTopProducts({ from, to, limit = 10 }: { from: Date; to: Date; limit?: number }) {
+export async function getTopProducts({ from, to, limit = 10, eventId }: { from: Date; to: Date; limit?: number; eventId?: number }) {
     await verifySession();
 
     // Get order ids in range
     const ordersInRange = await db.query.orders.findMany({
-        where: and(gte(orders.createdAt, from), lt(orders.createdAt, to), eq(orders.status, 'COMPLETED')),
+        where: and(
+            gte(orders.createdAt, from),
+            lt(orders.createdAt, to),
+            eq(orders.status, 'COMPLETED'),
+            eventId ? eq(orders.eventId, eventId) : undefined
+        ),
     });
     const orderIds = ordersInRange.map(o => o.id);
 
@@ -176,11 +186,16 @@ const agg: Record<number, { productName: string; qty: number; revenue: number }>
     return list.slice(0, limit);
 }
 
-export async function getAggregatedRevenue({ from, to, period = 'daily' }: { from: Date; to: Date; period?: 'daily' | 'weekly' | 'monthly' | 'yearly' }) {
+export async function getAggregatedRevenue({ from, to, period = 'daily', eventId }: { from: Date; to: Date; period?: 'daily' | 'weekly' | 'monthly' | 'yearly'; eventId?: number }) {
     await verifySession();
 
     const ordersInRange = await db.query.orders.findMany({
-        where: and(gte(orders.createdAt, from), lt(orders.createdAt, to), eq(orders.status, 'COMPLETED')),
+        where: and(
+            gte(orders.createdAt, from),
+            lt(orders.createdAt, to),
+            eq(orders.status, 'COMPLETED'),
+            eventId ? eq(orders.eventId, eventId) : undefined
+        ),
         with: {
             payments: true,
         },
@@ -233,16 +248,18 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
     }
 
     // Get shifts that ended in range
-    const shiftsInRange = await db.query.shifts.findMany({
-        where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
-            const conds: any[] = [];
-            if (from) conds.push(gteOp(s.endTime, from));
-            if (to) conds.push(ltOp(s.endTime, to));
-            if (conds.length === 0) return undefined;
-            conds.push(eqOp(s.status, 'CLOSED'));
-            return andOp(...conds);
-        },
-    });
+    const shiftsInRange = eventId
+        ? []
+        : await db.query.shifts.findMany({
+            where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
+                const conds: any[] = [];
+                if (from) conds.push(gteOp(s.endTime, from));
+                if (to) conds.push(ltOp(s.endTime, to));
+                if (conds.length === 0) return undefined;
+                conds.push(eqOp(s.status, 'CLOSED'));
+                return andOp(...conds);
+            },
+        });
 
     // Map shifts to periods
     const shiftMap: Record<string, number> = {};
@@ -255,7 +272,11 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
 
     // Get expenses in range
     const expensesInRange = await db.query.expenses.findMany({
-        where: and(gte(expenses.date, from), lt(expenses.date, to)),
+        where: and(
+            gte(expenses.date, from),
+            lt(expenses.date, to),
+            eventId ? eq(expenses.eventId, eventId) : undefined
+        ),
     });
 
     // Map expenses to periods
@@ -279,14 +300,15 @@ export async function getAggregatedRevenue({ from, to, period = 'daily' }: { fro
 }
 
 // Get detailed daily cash flow breakdown with income/expense by payment method
-export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
+export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
     await verifySession();
 
     const ordersInRange = await db.query.orders.findMany({
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
-            eq(orders.status, 'COMPLETED')
+            eq(orders.status, 'COMPLETED'),
+            eventId ? eq(orders.eventId, eventId) : undefined
         ),
         with: {
             items: true,
@@ -297,14 +319,16 @@ export async function getDailyCashflow({ from, to }: { from: Date; to: Date }) {
     const expensesInRange = await db.query.expenses.findMany({
         where: and(
             gte(expenses.date, from),
-            lt(expenses.date, to)
+            lt(expenses.date, to),
+            eventId ? eq(expenses.eventId, eventId) : undefined
         ),
     });
 
     const incomesInRange = await db.query.incomes.findMany({
         where: and(
             gte(incomes.date, from),
-            lt(incomes.date, to)
+            lt(incomes.date, to),
+            eventId ? eq(incomes.eventId, eventId) : undefined
         ),
     });
 

@@ -55,6 +55,11 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                             <h1 className="mb-2 mt-2 text-2xl sm:text-3xl font-bold text-[#1F1D1A]">{order.invoiceNumber}</h1>
                             <p className="text-muted-foreground text-sm">{formatDateTime(order.createdAt)}</p>
                             <p className="text-sm mt-2"><span className="font-semibold">Cashier:</span> {order.user?.name || 'Unknown'}</p>
+                            {order.event?.name && (
+                                <p className="mt-2 inline-flex w-fit rounded-full border border-[#DCCFBF] bg-[#FFF6E7] px-3 py-1 text-xs font-semibold text-[#8C4A1D]">
+                                    Event: {order.event.name}
+                                </p>
+                            )}
                             {order.invoiceNumber.startsWith('OB-') && (
                                 <p className="mt-2 text-xs font-semibold text-[#C86B2A]">Down Payment Invoice</p>
                             )}

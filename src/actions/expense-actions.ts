@@ -15,6 +15,17 @@ export async function getExpenses({ from, to, eventId }: { from?: Date; to?: Dat
     if (eventId) conditions.push(eq(expenses.eventId, eventId));
 
     const result = await db.query.expenses.findMany({
+        columns: {
+            id: true,
+            userId: true,
+            description: true,
+            amount: true,
+            category: true,
+            paymentMethod: true,
+            date: true,
+            notes: true,
+            createdAt: true,
+        },
         where: conditions.length > 0 ? and(...conditions) : undefined,
         with: {
             user: true,

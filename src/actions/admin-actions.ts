@@ -16,6 +16,17 @@ export async function getDashboardStats() {
 
     // 1. Total Sales Today
     const todayOrders = await db.query.orders.findMany({
+        columns: {
+            id: true,
+            invoiceNumber: true,
+            userId: true,
+            subtotalAmount: true,
+            discountAmount: true,
+            discountPercent: true,
+            totalAmount: true,
+            status: true,
+            createdAt: true,
+        },
         where: and(
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),
@@ -34,6 +45,17 @@ export async function getDashboardStats() {
 
     // 3. Recent Orders (today only)
     const recentOrders = await db.query.orders.findMany({
+        columns: {
+            id: true,
+            invoiceNumber: true,
+            userId: true,
+            subtotalAmount: true,
+            discountAmount: true,
+            discountPercent: true,
+            totalAmount: true,
+            status: true,
+            createdAt: true,
+        },
         where: and(
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),

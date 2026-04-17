@@ -4,7 +4,8 @@ import { db } from '@/db';
 import { orders, orderItems, payments, products, shifts, expenses, incomes, events } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
-import { getCurrentUserEventId, calculateRevenueShare } from '@/lib/event-utils';
+import { getCurrentUserEventId } from '@/lib/event-utils';
+import { calculateRevenueShare } from '@/lib/revenue-utils';
 
 const ORDER_BASE_COLUMNS = {
     id: true,

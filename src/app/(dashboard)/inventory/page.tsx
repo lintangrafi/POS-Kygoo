@@ -69,7 +69,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {menuItems.slice(0, 12).map((product: any) => (
+                                    {menuItems.map((product: any) => (
                                         <TableRow key={`menu-item-${product.id}`}>
                                             <TableCell className="font-medium">{product.name}</TableCell>
                                             <TableCell>{product.category?.name || '-'}</TableCell>

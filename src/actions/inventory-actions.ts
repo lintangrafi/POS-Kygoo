@@ -165,23 +165,13 @@ export async function getStockAdjustments({ productId, limit = 100, from, to }: 
 }
 
 export async function getMenuItems() {
-    const session = await requireAdmin();
-    
-    // Get user's event if assigned
-    const userEventId = await getCurrentUserEventId();
+    await requireAdmin();
 
     try {
         return await db.query.products.findMany({
-            where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
+            where: (p, { and: andOp, eq: eqOp }) => {
                 const conditions: any[] = [eqOp(p.isMenuItem, true)];
-                
-                // Event users: only their event items. Studio users: only studio items.
-                if (userEventId) {
-                    conditions.push(eqOp(p.eventId, userEventId));
-                } else {
-                    conditions.push(isNullFn(p.eventId));
-                }
-                
+
                 return andOp(...conditions);
             },
             with: {
@@ -199,20 +189,12 @@ export async function getMenuItems() {
 
 export async function getProducts({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
     await requireAdmin();
-    const userEventId = await getCurrentUserEventId();
 
     return await db.query.products.findMany({
-        where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
+        where: (p, { and: andOp, eq: eqOp }) => {
             const conds: any[] = [];
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
-
-            // Event users: only their event items. Studio users: only studio items.
-            if (userEventId) {
-                conds.push(eqOp(p.eventId, userEventId));
-            } else {
-                conds.push(isNullFn(p.eventId));
-            }
 
             if (conds.length === 0) return undefined;
             return andOp(...conds);
@@ -225,8 +207,9 @@ export async function getProducts({ isMenuItem, includeArchived = false }: { isM
 
 // Public version for authenticated users (cashiers/admins) to list products
 export async function getProductsPublic({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
-    await verifySession();
+    const session = await verifySession();
     const userEventId = await getCurrentUserEventId();
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
 
     return await db.query.products.findMany({
         where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
@@ -234,11 +217,13 @@ export async function getProductsPublic({ isMenuItem, includeArchived = false }:
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
 
-            // Event users: only their event items. Studio users: only studio items.
-            if (userEventId) {
-                conds.push(eqOp(p.eventId, userEventId));
-            } else {
-                conds.push(isNullFn(p.eventId));
+            // Admin can see all events; event users remain scoped.
+            if (!canOverrideEvent) {
+                if (userEventId) {
+                    conds.push(eqOp(p.eventId, userEventId));
+                } else {
+                    conds.push(isNullFn(p.eventId));
+                }
             }
 
             if (conds.length === 0) return undefined;

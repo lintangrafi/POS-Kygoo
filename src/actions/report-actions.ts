@@ -52,11 +52,12 @@ function formatLocalDateKey(input: Date | string | number): string {
 }
 
 export async function getFinancialReport({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
-    await verifySession();
-    
+    const session = await verifySession();
+
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
-    const filterEventId = userEventId ?? eventId;
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const filterEventId = canOverrideEvent ? (eventId ?? null) : (userEventId ?? eventId ?? null);
 
     // Fetch event details for revenue sharing
     let eventData: any = null;
@@ -205,11 +206,12 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
 }
 
 export async function getTopProducts({ from, to, limit = 10, eventId }: { from: Date; to: Date; limit?: number; eventId?: number }) {
-    await verifySession();
+    const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
-    const filterEventId = userEventId ?? eventId;
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const filterEventId = canOverrideEvent ? (eventId ?? null) : (userEventId ?? eventId ?? null);
 
     // Get order ids in range
     const ordersInRange = await db.query.orders.findMany({
@@ -260,11 +262,12 @@ const agg: Record<number, { productName: string; qty: number; revenue: number }>
 }
 
 export async function getAggregatedRevenue({ from, to, period = 'daily', eventId }: { from: Date; to: Date; period?: 'daily' | 'weekly' | 'monthly' | 'yearly'; eventId?: number }) {
-    await verifySession();
+    const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
-    const filterEventId = userEventId ?? eventId;
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const filterEventId = canOverrideEvent ? (eventId ?? null) : (userEventId ?? eventId ?? null);
 
     const ordersInRange = await db.query.orders.findMany({
         columns: ORDER_BASE_COLUMNS,
@@ -380,11 +383,12 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
 
 // Get detailed daily cash flow breakdown with income/expense by payment method
 export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
-    await verifySession();
+    const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
-    const filterEventId = userEventId ?? eventId;
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const filterEventId = canOverrideEvent ? (eventId ?? null) : (userEventId ?? eventId ?? null);
 
     const ordersInRange = await db.query.orders.findMany({
         columns: ORDER_BASE_COLUMNS,

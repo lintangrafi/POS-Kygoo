@@ -35,8 +35,10 @@ type SaveOpenBillPayload = {
 };
 
 export async function getPosData() {
+    const session = await verifySession();
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
+    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
 
     const allCategories = await db.query.categories.findMany();
     const allProducts = await db.query.products.findMany({
@@ -45,8 +47,8 @@ export async function getPosData() {
             conditions.push(gt(products.stock, -1000));
             
             // Event users can see: studio items (eventId NULL) + their own event items
-            // Studio users can see: everything (no eventId filter)
-            if (userEventId) {
+            // Admin users can see: everything (no eventId filter)
+            if (userEventId && !canOverrideEvent) {
                 conditions.push(or(
                     isNull(products.eventId),
                     eq(products.eventId, userEventId)

@@ -26,6 +26,7 @@ type SaveOpenBillPayload = {
     discountAmount: number;
     discountPercent: number;
     totalAmount: number;
+    eventId?: number | null;
     downPaymentPercent?: number; // 0-100 if using percentage
     downPaymentAmount?: number;  // Rp amount if not using percentage
     paymentMethod?: PaymentMethod; // Payment method for down payment
@@ -42,11 +43,10 @@ export async function getPosData() {
         where: (products, { gt, eq, isNull, and }) => {
             const conditions: any[] = [];
             conditions.push(gt(products.stock, -1000));
-            // Event users: only their event items. Studio users: only studio items.
+            // Event users: only their event items.
+            // Studio users: fetch all items, then client can switch between Studio/Event view.
             if (userEventId) {
                 conditions.push(eq(products.eventId, userEventId));
-            } else {
-                conditions.push(isNull(products.eventId));
             }
             return and(...conditions);
         },
@@ -89,7 +89,9 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
 
     // Get user's event if assigned (and not manually overridden)
     const userEventId = await getCurrentUserEventId();
-    const orderEventId = data.eventId !== undefined ? data.eventId : userEventId;
+    // Event users are locked to their assigned event.
+    // Studio users may choose event/studio from POS selector.
+    const orderEventId = userEventId ?? (data.eventId !== undefined ? data.eventId : null);
 
     try {
         const invoiceNumber = `INV-${Date.now()}`;
@@ -189,6 +191,7 @@ async function createDownPaymentInvoice(tx: any, params: {
     downPayment: number;
     paymentMethod: PaymentMethod;
     userId: number;
+    eventId?: number | null;
 }) {
     const invoiceNumber = params.billNumber; // OB-xxxx
 
@@ -200,6 +203,7 @@ async function createDownPaymentInvoice(tx: any, params: {
         discountPercent: params.discountPercent.toString(),
         totalAmount: params.downPayment.toString(),
         status: 'COMPLETED',
+        eventId: params.eventId ?? null,
     }).returning();
 
     await tx.insert(payments).values({
@@ -230,12 +234,10 @@ export async function getOpenBills() {
     const userEventId = await getCurrentUserEventId();
 
     const rows = await db.query.openBills.findMany({
-        where: (openBillsTable, { and: andOp, eq: eqOp, inArray: inArrayOp, isNull: isNullFn }) => {
+        where: (openBillsTable, { and: andOp, eq: eqOp, inArray: inArrayOp }) => {
             const conditions: any[] = [inArrayOp(openBillsTable.status, ['OPEN', 'PARTIAL'])];
             if (userEventId) {
                 conditions.push(eqOp(openBillsTable.eventId, userEventId));
-            } else {
-                conditions.push(isNullFn(openBillsTable.eventId));
             }
             return andOp(...conditions);
         },
@@ -278,12 +280,10 @@ export async function getOpenBillById(billId: number) {
     const userEventId = await getCurrentUserEventId();
 
     const bill = await db.query.openBills.findFirst({
-        where: (openBillsTable, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
+        where: (openBillsTable, { and: andOp, eq: eqOp }) => {
             const conditions: any[] = [eqOp(openBillsTable.id, billId)];
             if (userEventId) {
                 conditions.push(eqOp(openBillsTable.eventId, userEventId));
-            } else {
-                conditions.push(isNullFn(openBillsTable.eventId));
             }
             return andOp(...conditions);
         },
@@ -423,6 +423,9 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
 
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
+    // Event users are locked to their assigned event.
+    // Studio users may choose event/studio from POS selector.
+    const billEventId = userEventId ?? (data.eventId !== undefined ? data.eventId : null);
 
     try {
         const savedBill = await db.transaction(async (tx) => {
@@ -448,7 +451,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     invoiceNumber,
                     invoiceStatus: downPayment > 0 ? 'DP' : 'DRAFT',
                     userId: session.userId,
-                    eventId: userEventId,
+                    eventId: billEventId ?? null,
                     customerName: data.customerName || null,
                     note: data.note || null,
                     subtotalAmount: data.subtotalAmount.toString(),
@@ -473,6 +476,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         downPayment,
                         paymentMethod: data.paymentMethod,
                         userId: session.userId,
+                        eventId: billEventId ?? null,
                     });
                 }
             } else {
@@ -491,6 +495,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                 
                 await tx.update(openBills)
                     .set({
+                        eventId: billEventId ?? null,
                         customerName: data.customerName || null,
                         note: data.note || null,
                         subtotalAmount: data.subtotalAmount.toString(),
@@ -518,6 +523,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                         downPayment: delta,
                         paymentMethod: data.paymentMethod,
                         userId: session.userId,
+                        eventId: billEventId ?? null,
                     });
                 }
             }

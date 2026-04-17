@@ -542,6 +542,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                                             <TableHead className="text-right">QRIS Expenses</TableHead>
                                             <TableHead className="text-right">QRIS Additional</TableHead>
                                             <TableHead className="text-right">Net QRIS</TableHead>
+                                            <TableHead className="text-right">Transfer In</TableHead>
+                                            <TableHead className="text-right">Transfer Expenses</TableHead>
+                                            <TableHead className="text-right">Transfer Additional</TableHead>
+                                            <TableHead className="text-right">Net Transfer</TableHead>
                                             <TableHead className="text-right">Net Daily</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -557,6 +561,10 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                                                 <TableCell className="text-right">{formatRupiah(row.qrisExpenses)}</TableCell>
                                                 <TableCell className="text-right">{formatRupiah(row.qrisAdditional)}</TableCell>
                                                 <TableCell className="text-right">{formatRupiah(row.netQris)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.transferIncome || 0)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.transferExpenses || 0)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.transferAdditional || 0)}</TableCell>
+                                                <TableCell className="text-right">{formatRupiah(row.netTransfer || 0)}</TableCell>
                                                 <TableCell className="text-right">{formatRupiah(row.netDailyIncome)}</TableCell>
                                             </TableRow>
                                         ))}

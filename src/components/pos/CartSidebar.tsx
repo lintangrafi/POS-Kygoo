@@ -73,13 +73,14 @@ export function CartSidebar({
         setCart,
         activeOpenBill,
         setActiveOpenBill,
+        selectedEventId,
+        setSelectedEventId,
     } = usePosStore();
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedToDelete, setSelectedToDelete] = useState<Record<number, boolean>>({});
     const [openBills, setOpenBills] = useState<OpenBillListItem[]>(initialOpenBills);
     const [eventOptions] = useState<EventOption[]>(initialEventOptions);
-    const [selectedEventId, setSelectedEventId] = useState<number | null>(activeEventId);
     const [isLoadingOpenBills, setIsLoadingOpenBills] = useState(false);
     const [isSavingOpenBill, setIsSavingOpenBill] = useState(false);
     const [isVoidingOpenBillId, setIsVoidingOpenBillId] = useState<number | null>(null);
@@ -156,7 +157,7 @@ export function CartSidebar({
 
     useEffect(() => {
         setSelectedEventId(activeEventId ?? null);
-    }, [activeEventId]);
+    }, [activeEventId, setSelectedEventId]);
 
     // Numpad target for split behavior
     const [numpadTarget, setNumpadTarget] = useState<'CASH'|'NONCASH'|'DOWN_PAYMENT'|'DEFAULT'>('DEFAULT');
@@ -206,6 +207,7 @@ export function CartSidebar({
                 discountAmount,
                 discountPercent,
                 totalAmount: totalAfterDiscount,
+                eventId: selectedEventId,
                 downPaymentPercent: downPaymentType === 'PERCENT' ? downPaymentValue : 0,
                 downPaymentAmount: downPaymentType === 'AMOUNT' ? downPaymentValue : 0,
                 paymentMethod: downPaymentValue > 0 ? downPaymentMethod : undefined,

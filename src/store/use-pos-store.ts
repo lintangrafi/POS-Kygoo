@@ -7,6 +7,7 @@ export interface Product {
     price: string;
     stock: number;
     categoryId: number;
+    eventId?: number | null;
 }
 
 export interface CartItem extends Product {
@@ -39,6 +40,9 @@ interface PosState {
 
     searchQuery: string;
     setSearchQuery: (query: string) => void;
+
+    selectedEventId: number | null;
+    setSelectedEventId: (id: number | null) => void;
 }
 
 export const usePosStore = create<PosState>()(
@@ -48,6 +52,7 @@ export const usePosStore = create<PosState>()(
             activeOpenBill: null,
             selectedCategoryId: null,
             searchQuery: '',
+            selectedEventId: null,
 
             addToCart: (product) => set((state) => {
                 const existing = state.cart.find((item) => item.id === product.id);
@@ -86,6 +91,7 @@ export const usePosStore = create<PosState>()(
 
             setSelectedCategoryId: (id) => set({ selectedCategoryId: id }),
             setSearchQuery: (query) => set({ searchQuery: query }),
+            setSelectedEventId: (id) => set({ selectedEventId: id }),
         }),
         {
             name: 'pos-storage',

@@ -96,7 +96,11 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
     }
 
     // Payment breakdown
-    const paymentsBreakdown: Record<string, number> = {};
+    const paymentsBreakdown: Record<string, number> = {
+        CASH: 0,
+        QRIS: 0,
+        TRANSFER: 0,
+    };
     for (const o of ordersInRange) {
         for (const p of o.payments || []) {
             const m = p.method;
@@ -420,12 +424,16 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
         ordersTotal: number;
         cashIncome: number;
         qrisIncome: number;
+        transferIncome: number;
         cashExpenses: number;
         qrisExpenses: number;
+        transferExpenses: number;
         cashAdditional: number;
         qrisAdditional: number;
+        transferAdditional: number;
         netCash: number;
         netQris: number;
+        netTransfer: number;
         netDailyIncome: number;
     }> = {};
 
@@ -438,12 +446,16 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
                 ordersTotal: 0,
                 cashIncome: 0,
                 qrisIncome: 0,
+                transferIncome: 0,
                 cashExpenses: 0,
                 qrisExpenses: 0,
+                transferExpenses: 0,
                 cashAdditional: 0,
                 qrisAdditional: 0,
+                transferAdditional: 0,
                 netCash: 0,
                 netQris: 0,
+                netTransfer: 0,
                 netDailyIncome: 0,
             };
         }
@@ -454,6 +466,8 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
                 dailyCashflow[dateStr].cashIncome += Number(payment.amount);
             } else if (payment.method === 'QRIS') {
                 dailyCashflow[dateStr].qrisIncome += Number(payment.amount);
+            } else if (payment.method === 'TRANSFER') {
+                dailyCashflow[dateStr].transferIncome += Number(payment.amount);
             }
         }
     }
@@ -467,12 +481,16 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
                 ordersTotal: 0,
                 cashIncome: 0,
                 qrisIncome: 0,
+                transferIncome: 0,
                 cashExpenses: 0,
                 qrisExpenses: 0,
+                transferExpenses: 0,
                 cashAdditional: 0,
                 qrisAdditional: 0,
+                transferAdditional: 0,
                 netCash: 0,
                 netQris: 0,
+                netTransfer: 0,
                 netDailyIncome: 0,
             };
         }
@@ -481,6 +499,8 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
             dailyCashflow[dateStr].cashExpenses += Number(expense.amount);
         } else if (expense.paymentMethod === 'QRIS') {
             dailyCashflow[dateStr].qrisExpenses += Number(expense.amount);
+        } else if (expense.paymentMethod === 'TRANSFER') {
+            dailyCashflow[dateStr].transferExpenses += Number(expense.amount);
         }
     }
 
@@ -493,12 +513,16 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
                 ordersTotal: 0,
                 cashIncome: 0,
                 qrisIncome: 0,
+                transferIncome: 0,
                 cashExpenses: 0,
                 qrisExpenses: 0,
+                transferExpenses: 0,
                 cashAdditional: 0,
                 qrisAdditional: 0,
+                transferAdditional: 0,
                 netCash: 0,
                 netQris: 0,
+                netTransfer: 0,
                 netDailyIncome: 0,
             };
         }
@@ -507,6 +531,8 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
             dailyCashflow[dateStr].cashAdditional += Number(income.amount);
         } else if (income.paymentMethod === 'QRIS') {
             dailyCashflow[dateStr].qrisAdditional += Number(income.amount);
+        } else if (income.paymentMethod === 'TRANSFER') {
+            dailyCashflow[dateStr].transferAdditional += Number(income.amount);
         }
     }
 
@@ -517,8 +543,10 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
         day.netCash = day.cashIncome + day.cashAdditional - day.cashExpenses;
         // Net QRIS = QRIS income + QRIS additional income - QRIS expenses
         day.netQris = day.qrisIncome + day.qrisAdditional - day.qrisExpenses;
-        // Net daily income = total cash income + total QRIS income + total additional income - total expenses
-        day.netDailyIncome = day.netCash + day.netQris;
+        // Net TRANSFER = Transfer income + Transfer additional income - Transfer expenses
+        day.netTransfer = day.transferIncome + day.transferAdditional - day.transferExpenses;
+        // Net daily income across all payment methods
+        day.netDailyIncome = day.netCash + day.netQris + day.netTransfer;
     }
 
     const results = Object.values(dailyCashflow).sort((a, b) => a.date.localeCompare(b.date));

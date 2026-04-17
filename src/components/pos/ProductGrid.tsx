@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn, formatRupiah } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useEffect, useMemo } from 'react';
 
 interface ProductGridProps {
     categories: any[];
@@ -13,7 +14,14 @@ interface ProductGridProps {
 }
 
 export function ProductGrid({ categories, products }: ProductGridProps) {
-    const { selectedCategoryId, setSelectedCategoryId, addToCart, searchQuery, setSearchQuery } = usePosStore();
+    const {
+        selectedCategoryId,
+        setSelectedCategoryId,
+        addToCart,
+        searchQuery,
+        setSearchQuery,
+        selectedEventId,
+    } = usePosStore();
     const topProduct = products[0];
     const openBillCount = 0;
 
@@ -24,8 +32,26 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
         },
     ];
 
+    const eventScopedProducts = products.filter((p) => {
+        // Studio selection shows studio items only (eventId null).
+        // Event selection shows only items from that event.
+        if (selectedEventId === null) {
+            return p.eventId === null || p.eventId === undefined;
+        }
+        return p.eventId === selectedEventId;
+    });
+
+    const visibleCategoryIds = useMemo(() => new Set(eventScopedProducts.map((p) => p.categoryId)), [eventScopedProducts]);
+    const visibleCategories = categories.filter((cat) => visibleCategoryIds.has(cat.id));
+
+    useEffect(() => {
+        if (selectedCategoryId !== null && !visibleCategoryIds.has(selectedCategoryId)) {
+            setSelectedCategoryId(null);
+        }
+    }, [selectedCategoryId, visibleCategoryIds, setSelectedCategoryId]);
+
     // Filter Logic
-    const filteredProducts = products.filter((p) => {
+    const filteredProducts = eventScopedProducts.filter((p) => {
         const matchCategory = selectedCategoryId ? p.categoryId === selectedCategoryId : true;
         const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
         return matchCategory && matchSearch;
@@ -61,7 +87,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                     >
                         All Items
                     </Button>
-                    {categories.map((cat, index) => {
+                    {visibleCategories.map((cat, index) => {
                         const palette = categoryColorClasses[index % categoryColorClasses.length];
                         const isSelected = selectedCategoryId === cat.id;
 

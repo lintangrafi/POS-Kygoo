@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
             ...topProducts.slice(0, 10).map((p, idx) => `${idx + 1}. ${p.productName} | Qty ${p.qty} | ${toCurrency(Number(p.revenue))}`),
             '',
             'Daily Cashflow',
-            ...dailyCashflow.slice(-14).map((row) => `${row.date} | Net ${toCurrency(Number(row.netDailyIncome))} | Cash ${toCurrency(Number(row.netCash))} | QRIS ${toCurrency(Number(row.netQris))}`),
+            ...dailyCashflow.slice(-14).map((row) => `${row.date} | Net ${toCurrency(Number(row.netDailyIncome))} | Cash ${toCurrency(Number(row.netCash))} | QRIS ${toCurrency(Number(row.netQris))} | Transfer ${toCurrency(Number((row as any).netTransfer || 0))}`),
         ];
 
         for (const line of lines) {
@@ -191,7 +191,7 @@ export async function GET(req: NextRequest) {
     }
 
     rows.push('');
-    rows.push(['Daily Cashflow', 'Date', 'Cash In', 'Cash Exp', 'Cash Add', 'Net Cash', 'QRIS In', 'QRIS Exp', 'QRIS Add', 'Net QRIS', 'Net Daily'].map(csvEscape).join(','));
+    rows.push(['Daily Cashflow', 'Date', 'Cash In', 'Cash Exp', 'Cash Add', 'Net Cash', 'QRIS In', 'QRIS Exp', 'QRIS Add', 'Net QRIS', 'Transfer In', 'Transfer Exp', 'Transfer Add', 'Net Transfer', 'Net Daily'].map(csvEscape).join(','));
     for (const row of dailyCashflow) {
         rows.push([
             'Daily Cashflow',
@@ -204,6 +204,10 @@ export async function GET(req: NextRequest) {
             row.qrisExpenses,
             row.qrisAdditional,
             row.netQris,
+            (row as any).transferIncome || 0,
+            (row as any).transferExpenses || 0,
+            (row as any).transferAdditional || 0,
+            (row as any).netTransfer || 0,
             row.netDailyIncome,
         ].map(csvEscape).join(','));
     }

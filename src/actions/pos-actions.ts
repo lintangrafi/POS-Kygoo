@@ -5,6 +5,7 @@ import { categories, products, orders, orderItems, payments, auditLogs, openBill
 import { and, desc, eq, inArray, gte, lte, lt } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getOpenShift } from './shift-actions';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 type PaymentMethod = 'CASH' | 'QRIS' | 'TRANSFER';
 
@@ -73,6 +74,10 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
         return { error: 'No open shift found.' };
     }
 
+    // Get user's event if assigned (and not manually overridden)
+    const userEventId = await getCurrentUserEventId();
+    const orderEventId = data.eventId !== undefined ? data.eventId : userEventId;
+
     try {
         const invoiceNumber = `INV-${Date.now()}`;
 
@@ -85,7 +90,7 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                 discountPercent: data.discountPercent.toString(),
                 totalAmount: data.totalAmount.toString(),
                 status: 'COMPLETED',
-                eventId: data.eventId ?? null,
+                eventId: orderEventId ?? null,
             }).returning();
 
             for (const item of data.items) {
@@ -140,7 +145,7 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                     discountPercent: data.discountPercent,
                     total: data.totalAmount,
                     openBillId,
-                    eventId: data.eventId ?? null,
+                    eventId: orderEventId ?? null,
                 }),
             });
 

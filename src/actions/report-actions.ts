@@ -4,6 +4,43 @@ import { db } from '@/db';
 import { orders, orderItems, payments, products, shifts, expenses, incomes } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
+import { getCurrentUserEventId } from '@/lib/event-utils';
+
+const ORDER_BASE_COLUMNS = {
+    id: true,
+    invoiceNumber: true,
+    userId: true,
+    subtotalAmount: true,
+    discountAmount: true,
+    discountPercent: true,
+    totalAmount: true,
+    status: true,
+    createdAt: true,
+} as const;
+
+const EXPENSE_BASE_COLUMNS = {
+    id: true,
+    userId: true,
+    description: true,
+    amount: true,
+    category: true,
+    paymentMethod: true,
+    date: true,
+    notes: true,
+    createdAt: true,
+} as const;
+
+const INCOME_BASE_COLUMNS = {
+    id: true,
+    userId: true,
+    description: true,
+    amount: true,
+    category: true,
+    paymentMethod: true,
+    date: true,
+    notes: true,
+    createdAt: true,
+} as const;
 
 function formatLocalDateKey(input: Date | string | number): string {
     const d = new Date(input);
@@ -15,13 +52,18 @@ function formatLocalDateKey(input: Date | string | number): string {
 
 export async function getFinancialReport({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
     await verifySession();
+    
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
 
     const ordersInRange = await db.query.orders.findMany({
+        columns: ORDER_BASE_COLUMNS,
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            eventId ? eq(orders.eventId, eventId) : undefined
+            filterEventId ? eq(orders.eventId, filterEventId) : undefined
         ),
         with: {
             items: true,
@@ -62,7 +104,7 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
     }
 
     // Include shift totals (reported cash) that ended in the range
-    const shiftsInRange = eventId
+    const shiftsInRange = filterEventId
         ? []
         : await db.query.shifts.findMany({
             where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
@@ -79,10 +121,11 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
 
     // Get expenses in the range
     const expensesInRange = await db.query.expenses.findMany({
+        columns: EXPENSE_BASE_COLUMNS,
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            eventId ? eq(expenses.eventId, eventId) : undefined
+            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
         ),
         with: {
             user: true,
@@ -98,10 +141,11 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
 
     // Get incomes in the range
     const incomesInRange = await db.query.incomes.findMany({
+        columns: INCOME_BASE_COLUMNS,
         where: and(
             gte(incomes.date, from),
             lt(incomes.date, to),
-            eventId ? eq(incomes.eventId, eventId) : undefined
+            filterEventId ? eq(incomes.eventId, filterEventId) : undefined
         ),
         with: {
             user: true,
@@ -139,13 +183,18 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
 export async function getTopProducts({ from, to, limit = 10, eventId }: { from: Date; to: Date; limit?: number; eventId?: number }) {
     await verifySession();
 
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
+
     // Get order ids in range
     const ordersInRange = await db.query.orders.findMany({
+        columns: ORDER_BASE_COLUMNS,
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            eventId ? eq(orders.eventId, eventId) : undefined
+            filterEventId ? eq(orders.eventId, filterEventId) : undefined
         ),
     });
     const orderIds = ordersInRange.map(o => o.id);
@@ -189,12 +238,17 @@ const agg: Record<number, { productName: string; qty: number; revenue: number }>
 export async function getAggregatedRevenue({ from, to, period = 'daily', eventId }: { from: Date; to: Date; period?: 'daily' | 'weekly' | 'monthly' | 'yearly'; eventId?: number }) {
     await verifySession();
 
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
+
     const ordersInRange = await db.query.orders.findMany({
+        columns: ORDER_BASE_COLUMNS,
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            eventId ? eq(orders.eventId, eventId) : undefined
+            filterEventId ? eq(orders.eventId, filterEventId) : undefined
         ),
         with: {
             payments: true,
@@ -248,7 +302,7 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
     }
 
     // Get shifts that ended in range
-    const shiftsInRange = eventId
+    const shiftsInRange = filterEventId
         ? []
         : await db.query.shifts.findMany({
             where: (s, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }) => {
@@ -272,10 +326,11 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
 
     // Get expenses in range
     const expensesInRange = await db.query.expenses.findMany({
+        columns: EXPENSE_BASE_COLUMNS,
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            eventId ? eq(expenses.eventId, eventId) : undefined
+            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
         ),
     });
 
@@ -303,12 +358,17 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
 export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
     await verifySession();
 
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
+
     const ordersInRange = await db.query.orders.findMany({
+        columns: ORDER_BASE_COLUMNS,
         where: and(
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            eventId ? eq(orders.eventId, eventId) : undefined
+            filterEventId ? eq(orders.eventId, filterEventId) : undefined
         ),
         with: {
             items: true,
@@ -317,18 +377,20 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
     });
 
     const expensesInRange = await db.query.expenses.findMany({
+        columns: EXPENSE_BASE_COLUMNS,
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            eventId ? eq(expenses.eventId, eventId) : undefined
+            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
         ),
     });
 
     const incomesInRange = await db.query.incomes.findMany({
+        columns: INCOME_BASE_COLUMNS,
         where: and(
             gte(incomes.date, from),
             lt(incomes.date, to),
-            eventId ? eq(incomes.eventId, eventId) : undefined
+            filterEventId ? eq(incomes.eventId, filterEventId) : undefined
         ),
     });
 

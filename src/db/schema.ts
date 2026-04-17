@@ -9,18 +9,7 @@ export const paymentMethodEnum = pgEnum('payment_method', ['CASH', 'QRIS', 'TRAN
 export const shiftStatusEnum = pgEnum('shift_status', ['OPEN', 'CLOSED']);
 export const openBillStatusEnum = pgEnum('open_bill_status', ['OPEN', 'PARTIAL', 'CLOSED', 'VOID']);
 
-// Users Table
-export const users = pgTable('users', {
-    id: serial('id').primaryKey(),
-    name: text('name').notNull(),
-    email: text('email').notNull().unique(),
-    password: text('password').notNull(), // Hashed
-    role: userRoleEnum('role').default('CASHIER').notNull(),
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// Events Table
+// Events Table (defined before Users)
 export const events = pgTable('events', {
     id: serial('id').primaryKey(),
     name: text('name').notNull(),
@@ -28,7 +17,19 @@ export const events = pgTable('events', {
     endDate: timestamp('end_date').notNull(),
     notes: text('notes'),
     isActive: boolean('is_active').notNull().default(true),
-    createdBy: integer('created_by').references(() => users.id),
+    createdBy: integer('created_by'), // Foreign key to users.id (defined in relations)
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Users Table
+export const users = pgTable('users', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull().unique(),
+    password: text('password').notNull(), // Hashed
+    role: userRoleEnum('role').default('CASHIER').notNull(),
+    eventId: integer('event_id').references(() => events.id),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

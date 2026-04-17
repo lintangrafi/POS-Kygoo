@@ -5,14 +5,19 @@ import { expenses, auditLogs } from '@/db/schema';
 import { and, gte, lt, desc, eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export async function getExpenses({ from, to, eventId }: { from?: Date; to?: Date; eventId?: number }) {
     const session = await verifySession();
+    
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
 
     const conditions: any[] = [];
     if (from) conditions.push(gte(expenses.date, from));
     if (to) conditions.push(lt(expenses.date, to));
-    if (eventId) conditions.push(eq(expenses.eventId, eventId));
+    if (filterEventId) conditions.push(eq(expenses.eventId, filterEventId));
 
     const result = await db.query.expenses.findMany({
         columns: {

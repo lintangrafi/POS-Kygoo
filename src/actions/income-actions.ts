@@ -5,16 +5,32 @@ import { incomes, auditLogs } from '@/db/schema';
 import { and, gte, lt, desc, eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export async function getIncomes({ from, to, eventId }: { from?: Date; to?: Date; eventId?: number }) {
     const session = await verifySession();
+    
+    // Get user's event if assigned, otherwise use passed eventId
+    const userEventId = await getCurrentUserEventId();
+    const filterEventId = userEventId ?? eventId;
 
     const conditions: any[] = [];
     if (from) conditions.push(gte(incomes.date, from));
     if (to) conditions.push(lt(incomes.date, to));
-    if (eventId) conditions.push(eq(incomes.eventId, eventId));
+    if (filterEventId) conditions.push(eq(incomes.eventId, filterEventId));
 
     const result = await db.query.incomes.findMany({
+        columns: {
+            id: true,
+            userId: true,
+            description: true,
+            amount: true,
+            category: true,
+            paymentMethod: true,
+            date: true,
+            notes: true,
+            createdAt: true,
+        },
         where: conditions.length > 0 ? and(...conditions) : undefined,
         with: {
             user: true,

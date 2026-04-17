@@ -4,9 +4,13 @@ import { db } from '@/db';
 import { orders, products, auditLogs, orderItems, payments, users } from '@/db/schema';
 import { desc, sql, eq, and, gte, lt, lte } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export async function getDashboardStats() {
-    await verifySession();
+    const session = await verifySession();
+    
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -30,7 +34,8 @@ export async function getDashboardStats() {
         where: and(
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),
-            eq(orders.status, 'COMPLETED')
+            eq(orders.status, 'COMPLETED'),
+            userEventId ? eq(orders.eventId, userEventId) : undefined
         ),
     });
 
@@ -59,7 +64,8 @@ export async function getDashboardStats() {
         where: and(
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),
-            eq(orders.status, 'COMPLETED')
+            eq(orders.status, 'COMPLETED'),
+            userEventId ? eq(orders.eventId, userEventId) : undefined
         ),
         orderBy: [desc(orders.createdAt)],
         limit: 5,
@@ -141,6 +147,17 @@ export async function getOrders({ limit = 50, from, to }: { limit?: number; from
 
     try {
         return await db.query.orders.findMany({
+            columns: {
+                id: true,
+                invoiceNumber: true,
+                userId: true,
+                subtotalAmount: true,
+                discountAmount: true,
+                discountPercent: true,
+                totalAmount: true,
+                status: true,
+                createdAt: true,
+            },
             where: whereBuilder,
             orderBy: [desc(orders.createdAt)],
             limit,
@@ -154,6 +171,17 @@ export async function getOrders({ limit = 50, from, to }: { limit?: number; from
     } catch (error) {
         console.warn('[getOrders] fallback without event relation due schema mismatch', error);
         return await db.query.orders.findMany({
+            columns: {
+                id: true,
+                invoiceNumber: true,
+                userId: true,
+                subtotalAmount: true,
+                discountAmount: true,
+                discountPercent: true,
+                totalAmount: true,
+                status: true,
+                createdAt: true,
+            },
             where: whereBuilder,
             orderBy: [desc(orders.createdAt)],
             limit,
@@ -178,6 +206,17 @@ export async function getOrderById(id: number) {
     let order: any = null;
     try {
         order = await db.query.orders.findFirst({
+            columns: {
+                id: true,
+                invoiceNumber: true,
+                userId: true,
+                subtotalAmount: true,
+                discountAmount: true,
+                discountPercent: true,
+                totalAmount: true,
+                status: true,
+                createdAt: true,
+            },
             where: eq(orders.id, id),
             with: {
                 user: true,
@@ -189,6 +228,17 @@ export async function getOrderById(id: number) {
     } catch (error) {
         console.warn('[getOrderById] fallback without event relation due schema mismatch', error);
         order = await db.query.orders.findFirst({
+            columns: {
+                id: true,
+                invoiceNumber: true,
+                userId: true,
+                subtotalAmount: true,
+                discountAmount: true,
+                discountPercent: true,
+                totalAmount: true,
+                status: true,
+                createdAt: true,
+            },
             where: eq(orders.id, id),
             with: {
                 user: true,

@@ -547,13 +547,19 @@ export function CartSidebar({
                 {/* Event Selector - Always Visible */}
                 {eventOptions.length > 0 && (
                     <div className="pt-2 border-t border-[#E6DED0]">
-                        <label className="text-xs font-semibold text-[#6F6659] block mb-2">Transaction Type</label>
+                        <label className="text-xs font-semibold text-[#6F6659] block mb-2">Assign to Event</label>
                         <select
                             value={selectedEventId ?? ''}
                             onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
-                            className="w-full h-9 rounded-md border border-[#C86B2A] bg-[#FFF8F0] px-3 text-sm font-medium text-[#1F1D1A]"
+                            className={`w-full h-9 rounded-md border px-3 text-sm font-medium text-[#1F1D1A] ${
+                                !selectedEventId && eventOptions.length > 1
+                                    ? 'border-red-500 bg-red-50'
+                                    : 'border-[#C86B2A] bg-[#FFF8F0]'
+                            }`}
                         >
-                            <option value="">Studio (No Event)</option>
+                            <option value="" className="text-gray-500">
+                                {eventOptions.length > 1 ? '⚠️ Select Event or Studio' : '📅 Studio (No Event)'}
+                            </option>
                             {eventOptions.map((event) => (
                                 <option key={event.id} value={event.id}>
                                     📅 {event.name}

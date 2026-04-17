@@ -138,9 +138,9 @@ export async function getEventOptions() {
 
     let rows: Array<{ id: number; name: string; startDate: Date; endDate: Date }> = [];
     try {
+        // Return ALL events (both active and inactive) so users can assign transactions to any event, regardless of active status
         rows = await db.query.events.findMany({
-            where: eq(events.isActive, true),
-            orderBy: [desc(events.startDate), desc(events.id)],
+            orderBy: [desc(events.isActive), desc(events.startDate), desc(events.id)],
             columns: {
                 id: true,
                 name: true,

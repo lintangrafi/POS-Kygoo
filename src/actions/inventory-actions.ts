@@ -180,9 +180,6 @@ export async function getMenuItems() {
             },
             with: {
                 category: true,
-                event: {
-                    columns: { id: true, name: true },
-                },
             }
         });
     } catch (err: any) {
@@ -216,9 +213,6 @@ export async function getProducts({ isMenuItem, includeArchived = false }: { isM
         },
         with: {
             category: true,
-            event: {
-                columns: { id: true, name: true },
-            },
         },
     });
 }
@@ -246,9 +240,6 @@ export async function getProductsPublic({ isMenuItem, includeArchived = false }:
         },
         with: {
             category: true,
-            event: {
-                columns: { id: true, name: true },
-            },
         },
     });
 }

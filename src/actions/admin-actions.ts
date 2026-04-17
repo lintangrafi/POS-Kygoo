@@ -35,7 +35,7 @@ export async function getDashboardStats() {
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),
             eq(orders.status, 'COMPLETED'),
-            userEventId ? eq(orders.eventId, userEventId) : undefined
+            ...(userEventId ? [eq(orders.eventId, userEventId)] : [])
         ),
     });
 
@@ -65,7 +65,7 @@ export async function getDashboardStats() {
             gte(orders.createdAt, today),
             lt(orders.createdAt, tomorrow),
             eq(orders.status, 'COMPLETED'),
-            userEventId ? eq(orders.eventId, userEventId) : undefined
+            ...(userEventId ? [eq(orders.eventId, userEventId)] : [])
         ),
         orderBy: [desc(orders.createdAt)],
         limit: 5,

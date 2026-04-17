@@ -75,7 +75,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                             <TableCell>{product.category?.name || '-'}</TableCell>
                                             <TableCell>
                                                 {product.eventId ? (
-                                                    <Badge className="bg-[#B8860B] text-white">{product.event?.name || 'Event'}</Badge>
+                                                    <Badge className="bg-[#B8860B] text-white">Event</Badge>
                                                 ) : (
                                                     <Badge variant="outline" className="border-[#6F6659] text-[#6F6659]">Studio</Badge>
                                                 )}

@@ -166,12 +166,12 @@ export async function getMenuItems() {
 
     try {
         return await db.query.products.findMany({
-            where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
+            where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
                 const conditions: any[] = [eqOp(p.isMenuItem, true)];
                 
-                // Show: studio items (eventId IS NULL) + items for user's event
+                // Event users: only their event items. Studio users: only studio items.
                 if (userEventId) {
-                    conditions.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+                    conditions.push(eqOp(p.eventId, userEventId));
                 } else {
                     conditions.push(isNullFn(p.eventId));
                 }
@@ -196,14 +196,14 @@ export async function getProducts({ isMenuItem, includeArchived = false }: { isM
     const userEventId = await getCurrentUserEventId();
 
     return await db.query.products.findMany({
-        where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
+        where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
             const conds: any[] = [];
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
 
-            // Event filtering: show studio items (eventId IS NULL) + user's event items
+            // Event users: only their event items. Studio users: only studio items.
             if (userEventId) {
-                conds.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+                conds.push(eqOp(p.eventId, userEventId));
             } else {
                 conds.push(isNullFn(p.eventId));
             }
@@ -223,14 +223,14 @@ export async function getProductsPublic({ isMenuItem, includeArchived = false }:
     const userEventId = await getCurrentUserEventId();
 
     return await db.query.products.findMany({
-        where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
+        where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
             const conds: any[] = [];
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
 
-            // Event filtering: show studio items (eventId IS NULL) + user's event items
+            // Event users: only their event items. Studio users: only studio items.
             if (userEventId) {
-                conds.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+                conds.push(eqOp(p.eventId, userEventId));
             } else {
                 conds.push(isNullFn(p.eventId));
             }

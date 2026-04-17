@@ -28,6 +28,11 @@ export default async function EventsPage() {
         endDate: event.endDate.toISOString(),
         notes: event.notes,
         isActive: event.isActive,
+        revenueShareType: (event.revenueShareType || 'PERCENTAGE') as 'PERCENTAGE' | 'FIXED',
+        organizerSharePercent: event.organizerSharePercent ? Number(event.organizerSharePercent) : undefined,
+        studioSharePercent: event.studioSharePercent ? Number(event.studioSharePercent) : undefined,
+        organizerShareFixed: event.organizerShareFixed ? Number(event.organizerShareFixed) : undefined,
+        studioShareFixed: event.studioShareFixed ? Number(event.studioShareFixed) : undefined,
     }));
 
     return (

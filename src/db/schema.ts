@@ -17,6 +17,12 @@ export const events = pgTable('events', {
     endDate: timestamp('end_date').notNull(),
     notes: text('notes'),
     isActive: boolean('is_active').notNull().default(true),
+    // Revenue sharing: percentage split or fixed amounts
+    revenueShareType: text('revenue_share_type').default('PERCENTAGE'), // PERCENTAGE or FIXED
+    organizerSharePercent: decimal('organizer_share_percent', { precision: 5, scale: 2 }), // e.g., 30 for 30%
+    studioSharePercent: decimal('studio_share_percent', { precision: 5, scale: 2 }), // e.g., 70 for 70%
+    organizerShareFixed: decimal('organizer_share_fixed', { precision: 12, scale: 2 }), // e.g., 10000
+    studioShareFixed: decimal('studio_share_fixed', { precision: 12, scale: 2 }), // e.g., 25000
     createdBy: integer('created_by'), // Foreign key to users.id (defined in relations)
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -46,6 +52,7 @@ export const categories = pgTable('categories', {
 export const products = pgTable('products', {
     id: serial('id').primaryKey(),
     categoryId: integer('category_id').references(() => categories.id).notNull(),
+    eventId: integer('event_id').references(() => events.id), // NULL for studio items, set for event-specific items
     sku: text('sku').unique(),   // Optional or Not Null depending on need, unique for barcode
     name: text('name').notNull(),
     price: decimal('price', { precision: 12, scale: 2 }).notNull(),
@@ -62,6 +69,10 @@ export const productsRelations = relations(products, ({ one }) => ({
     category: one(categories, {
         fields: [products.categoryId],
         references: [categories.id],
+    }),
+    event: one(events, {
+        fields: [products.eventId],
+        references: [events.id],
     }),
 }));
 
@@ -109,6 +120,7 @@ export const openBills = pgTable('open_bills', {
     invoiceNumber: text('invoice_number').unique(), // DRAFT-xxx for open bills, INV-xxx when converted to order
     invoiceStatus: text('invoice_status').default('DRAFT'), // DRAFT or CONVERTED
     userId: integer('user_id').references(() => users.id).notNull(),
+    eventId: integer('event_id').references(() => events.id),
     customerName: text('customer_name'),
     note: text('note'),
     subtotalAmount: decimal('subtotal_amount', { precision: 12, scale: 2 }).notNull().default('0'),

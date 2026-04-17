@@ -34,9 +34,22 @@ type SaveOpenBillPayload = {
 };
 
 export async function getPosData() {
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     const allCategories = await db.query.categories.findMany();
     const allProducts = await db.query.products.findMany({
-        where: (products, { gt }) => gt(products.stock, -1000), // Show all for now, maybe filter stock later
+        where: (products, { gt, or, eq, isNull, and }) => {
+            const conditions: any[] = [];
+            conditions.push(gt(products.stock, -1000));
+            // Show: studio items (eventId IS NULL) + items for user's event
+            if (userEventId) {
+                conditions.push(or(isNull(products.eventId), eq(products.eventId, userEventId)));
+            } else {
+                conditions.push(isNull(products.eventId));
+            }
+            return and(...conditions);
+        },
     });
 
     // Deduplicate categories by normalized name (case-insensitive, trimmed)
@@ -213,8 +226,19 @@ async function createDownPaymentInvoice(tx: any, params: {
 export async function getOpenBills() {
     await verifySession();
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     const rows = await db.query.openBills.findMany({
-        where: inArray(openBills.status, ['OPEN', 'PARTIAL']),
+        where: (openBillsTable, { and: andOp, eq: eqOp, inArray: inArrayOp, isNull: isNullFn }) => {
+            const conditions: any[] = [inArrayOp(openBillsTable.status, ['OPEN', 'PARTIAL'])];
+            if (userEventId) {
+                conditions.push(eqOp(openBillsTable.eventId, userEventId));
+            } else {
+                conditions.push(isNullFn(openBillsTable.eventId));
+            }
+            return andOp(...conditions);
+        },
         with: {
             items: true,
             user: {
@@ -250,8 +274,19 @@ export async function getOpenBills() {
 export async function getOpenBillById(billId: number) {
     await verifySession();
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     const bill = await db.query.openBills.findFirst({
-        where: eq(openBills.id, billId),
+        where: (openBillsTable, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
+            const conditions: any[] = [eqOp(openBillsTable.id, billId)];
+            if (userEventId) {
+                conditions.push(eqOp(openBillsTable.eventId, userEventId));
+            } else {
+                conditions.push(isNullFn(openBillsTable.eventId));
+            }
+            return andOp(...conditions);
+        },
         with: {
             items: true,
         },
@@ -290,8 +325,14 @@ export async function getOpenBillById(billId: number) {
 export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
     await verifySession();
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     const bill = await db.query.openBills.findFirst({
-        where: eq(openBills.invoiceNumber, invoiceNumber),
+        where: and(
+            eq(openBills.invoiceNumber, invoiceNumber),
+            userEventId ? eq(openBills.eventId, userEventId) : undefined
+        ),
         with: { items: true },
     });
 
@@ -344,8 +385,15 @@ export async function getOpenBillByOrderId(orderId: number) {
 export async function getOpenBillsByRange(params: { from: Date; to: Date }) {
     await verifySession();
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     const rows = await db.query.openBills.findMany({
-        where: and(gte(openBills.createdAt, params.from), lt(openBills.createdAt, params.to)),
+        where: and(
+            gte(openBills.createdAt, params.from),
+            lt(openBills.createdAt, params.to),
+            userEventId ? eq(openBills.eventId, userEventId) : undefined
+        ),
         with: { items: true },
         orderBy: [desc(openBills.createdAt)],
     });
@@ -373,6 +421,9 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
         return { error: 'Cart is empty. Cannot save open bill.' };
     }
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     try {
         const savedBill = await db.transaction(async (tx) => {
             let targetBillId = data.billId;
@@ -397,6 +448,7 @@ export async function saveOpenBill(data: SaveOpenBillPayload) {
                     invoiceNumber,
                     invoiceStatus: downPayment > 0 ? 'DP' : 'DRAFT',
                     userId: session.userId,
+                    eventId: userEventId,
                     customerName: data.customerName || null,
                     note: data.note || null,
                     subtotalAmount: data.subtotalAmount.toString(),
@@ -566,9 +618,15 @@ export async function voidOpenBill(openBillId: number, reason?: string) {
 export async function getDraftInvoices(params?: { from?: Date; to?: Date }) {
     await verifySession();
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     try {
         const conditions = [inArray(openBills.status, ['OPEN', 'PARTIAL'])];
         
+        if (userEventId) {
+            conditions.push(eq(openBills.eventId, userEventId));
+        }
         if (params?.from) {
             conditions.push(gte(openBills.createdAt, params.from));
         }

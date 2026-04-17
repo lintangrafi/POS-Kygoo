@@ -1,10 +1,10 @@
 'use server';
 
 import { db } from '@/db';
-import { orders, orderItems, payments, products, shifts, expenses, incomes } from '@/db/schema';
+import { orders, orderItems, payments, products, shifts, expenses, incomes, events } from '@/db/schema';
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
-import { getCurrentUserEventId } from '@/lib/event-utils';
+import { getCurrentUserEventId, calculateRevenueShare } from '@/lib/event-utils';
 
 const ORDER_BASE_COLUMNS = {
     id: true,
@@ -56,6 +56,14 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
     const filterEventId = userEventId ?? eventId;
+
+    // Fetch event details for revenue sharing
+    let eventData: any = null;
+    if (filterEventId) {
+        eventData = await db.query.events.findFirst({
+            where: eq(events.id, filterEventId),
+        });
+    }
 
     const ordersInRange = await db.query.orders.findMany({
         columns: ORDER_BASE_COLUMNS,
@@ -159,6 +167,15 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
         incomesByMethod[i.paymentMethod] = (incomesByMethod[i.paymentMethod] || 0) + Number(i.amount);
     }
 
+    // Calculate revenue sharing if event has configuration
+    const revenueShare = eventData ? calculateRevenueShare(turnover, {
+        revenueShareType: eventData.revenueShareType,
+        organizerSharePercent: eventData.organizerSharePercent,
+        studioSharePercent: eventData.studioSharePercent,
+        organizerShareFixed: eventData.organizerShareFixed,
+        studioShareFixed: eventData.studioShareFixed,
+    }) : null;
+
     return {
         turnover,
         totalOrders,
@@ -177,6 +194,8 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
         expensesByMethod,
         incomes: incomesInRange,
         incomesByMethod,
+        revenueShare,
+        event: eventData,
     };
 }
 

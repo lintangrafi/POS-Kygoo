@@ -2,9 +2,10 @@
 
 import { db } from '@/db';
 import { products, stockAdjustments, auditLogs, orderItems } from '@/db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, or, isNull } from 'drizzle-orm';
 import { requireAdmin } from './admin-actions';
 import { verifySession } from '@/lib/auth';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 1, from, to }: { productId?: number; limit?: number; page?: number; from?: Date; to?: Date } = {}) {
     // Allow any authenticated user (cashier or admin) to view recent adjustments
@@ -35,11 +36,12 @@ export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 
     return { data, total };
 }
 
-export async function addProduct(payload: { categoryId: number; sku?: string; name: string; price: string | number; costPrice?: string | number; stock?: number; isMenuItem?: boolean }) {
+export async function addProduct(payload: { categoryId: number; sku?: string; name: string; price: string | number; costPrice?: string | number; stock?: number; isMenuItem?: boolean; eventId?: number }) {
     const session = await requireAdmin();
 
     const [p] = await db.insert(products).values({
         categoryId: payload.categoryId,
+        eventId: payload.eventId || null,
         sku: payload.sku,
         name: payload.name,
         price: payload.price.toString(),
@@ -60,7 +62,7 @@ export async function addProduct(payload: { categoryId: number; sku?: string; na
     return p;
 }
 
-export async function updateProduct(id: number, payload: { name?: string; price?: string | number; costPrice?: string | number; sku?: string; categoryId?: number; isMenuItem?: boolean }) {
+export async function updateProduct(id: number, payload: { name?: string; price?: string | number; costPrice?: string | number; sku?: string; categoryId?: number; isMenuItem?: boolean; eventId?: number | null }) {
     const session = await requireAdmin();
 
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, id) });
@@ -75,6 +77,7 @@ export async function updateProduct(id: number, payload: { name?: string; price?
         sku: payload.sku ?? existing.sku,
         categoryId: payload.categoryId ?? existing.categoryId,
         isMenuItem: payload.isMenuItem ?? existing.isMenuItem,
+        eventId: payload.eventId !== undefined ? (payload.eventId ?? null) : existing.eventId,
     }).where(eq(products.id, id));
 
     const updated = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, id) });
@@ -156,12 +159,30 @@ export async function getStockAdjustments({ productId, limit = 100, from, to }: 
 }
 
 export async function getMenuItems() {
-    await requireAdmin();
+    const session = await requireAdmin();
+    
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     try {
         return await db.query.products.findMany({
-            where: (p, { eq }) => eq(p.isMenuItem, true),
+            where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
+                const conditions: any[] = [eqOp(p.isMenuItem, true)];
+                
+                // Show: studio items (eventId IS NULL) + items for user's event
+                if (userEventId) {
+                    conditions.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+                } else {
+                    conditions.push(isNullFn(p.eventId));
+                }
+                
+                return andOp(...conditions);
+            },
             with: {
                 category: true,
+                event: {
+                    columns: { id: true, name: true },
+                },
             }
         });
     } catch (err: any) {
@@ -175,28 +196,60 @@ export async function getMenuItems() {
 
 export async function getProducts({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
     await requireAdmin();
+    const userEventId = await getCurrentUserEventId();
+
     return await db.query.products.findMany({
-        where: (p, { and: andOp, eq: eqOp }) => {
+        where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
             const conds: any[] = [];
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
+
+            // Event filtering: show studio items (eventId IS NULL) + user's event items
+            if (userEventId) {
+                conds.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+            } else {
+                conds.push(isNullFn(p.eventId));
+            }
+
             if (conds.length === 0) return undefined;
             return andOp(...conds);
-        }
+        },
+        with: {
+            category: true,
+            event: {
+                columns: { id: true, name: true },
+            },
+        },
     });
 }
 
 // Public version for authenticated users (cashiers/admins) to list products
 export async function getProductsPublic({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
     await verifySession();
+    const userEventId = await getCurrentUserEventId();
+
     return await db.query.products.findMany({
-        where: (p, { and: andOp, eq: eqOp }) => {
+        where: (p, { and: andOp, eq: eqOp, or: orOp, isNull: isNullFn }) => {
             const conds: any[] = [];
             if (typeof isMenuItem === 'boolean') conds.push(eqOp(p.isMenuItem, isMenuItem));
             if (!includeArchived) conds.push(eqOp(p.isArchived, false));
+
+            // Event filtering: show studio items (eventId IS NULL) + user's event items
+            if (userEventId) {
+                conds.push(orOp(isNullFn(p.eventId), eqOp(p.eventId, userEventId)));
+            } else {
+                conds.push(isNullFn(p.eventId));
+            }
+
             if (conds.length === 0) return undefined;
             return andOp(...conds);
-        }
+        },
+        with: {
+            category: true,
+            event: {
+                columns: { id: true, name: true },
+            },
+        },
     });
 }
 

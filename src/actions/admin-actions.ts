@@ -137,10 +137,14 @@ export async function requireAdmin() {
 export async function getOrders({ limit = 50, from, to }: { limit?: number; from?: Date; to?: Date } = {}) {
     await requireAdmin();
 
-    const whereBuilder = (ordersTable: any, { and: andOp, gte: gteOp, lt: ltOp }: any) => {
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
+    const whereBuilder = (ordersTable: any, { and: andOp, gte: gteOp, lt: ltOp, eq: eqOp }: any) => {
         const conds: any[] = [];
         if (from) conds.push(gteOp(ordersTable.createdAt, from));
         if (to) conds.push(ltOp(ordersTable.createdAt, to));
+        if (userEventId) conds.push(eqOp(ordersTable.eventId, userEventId));
         if (conds.length === 0) return undefined;
         return andOp(...conds);
     };
@@ -203,6 +207,9 @@ export async function getOrderById(id: number) {
 
     console.log('[getOrderById] called by', { userId: session.userId, role: session.role }, 'for id', id);
 
+    // Get user's event if assigned
+    const userEventId = await getCurrentUserEventId();
+
     let order: any = null;
     try {
         order = await db.query.orders.findFirst({
@@ -217,7 +224,10 @@ export async function getOrderById(id: number) {
                 status: true,
                 createdAt: true,
             },
-            where: eq(orders.id, id),
+            where: and(
+                eq(orders.id, id),
+                userEventId ? eq(orders.eventId, userEventId) : undefined
+            ),
             with: {
                 user: true,
                 event: true,

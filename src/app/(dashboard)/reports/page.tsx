@@ -7,6 +7,7 @@ import TrendChart from '@/components/reports/TrendChart';
 import BarChart from '@/components/reports/BarChart';
 import { ExpenseManagement } from '@/components/reports/ExpenseManagement';
 import { IncomeManagement } from '@/components/reports/IncomeManagement';
+import { EventSelector } from '@/components/reports/EventSelector';
 import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -181,12 +182,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     <h1 className="text-3xl font-bold tracking-tight text-[#1F1D1A]">Financial Reports</h1>
                     <p className="text-sm text-[#6F6659]">Analisis revenue, expense, dan profit untuk keputusan operasional harian.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <a href={`${exportBase}&format=csv`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export CSV</a>
-                    <a href={`${exportBase}&format=pdf`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export PDF</a>
-                    <a href={`?period=today${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
-                    <a href={`?period=weekly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
-                    <a href={`?period=monthly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                        <a href={`${exportBase}&format=csv`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export CSV</a>
+                        <a href={`${exportBase}&format=pdf`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export PDF</a>
+                        <a href={`?period=today${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
+                        <a href={`?period=weekly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
+                        <a href={`?period=monthly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
+                    </div>
+                    <EventSelector events={eventOptions} currentEventId={selectedEventId} />
                 </div>
             </div>
 
@@ -341,6 +345,38 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Revenue Sharing Display */}
+            {r.revenueShare && r.event && (
+                <Card className="border-[#E6DED0] bg-[#FFF8F0]">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            💰 Pembagian Hasil - {r.event.name}
+                        </CardTitle>
+                        <CardDescription>
+                            {r.revenueShare.type === 'PERCENTAGE' 
+                                ? `Persentase: Penyelenggara ${r.revenueShare.organizerPercent}% | Studio ${r.revenueShare.studioPercent}%`
+                                : 'Nominal Tetap'}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="rounded-lg border border-[#E6DED0] bg-white p-3">
+                                <p className="text-xs text-[#6F6659] mb-1">Total Revenue</p>
+                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.total)}</p>
+                            </div>
+                            <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
+                                <p className="text-xs text-[#8B6F47] mb-1">🏢 Penyelenggara</p>
+                                <p className="text-xl font-semibold text-[#C86B2A]">{formatRupiah(r.revenueShare.organizerShare)}</p>
+                            </div>
+                            <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
+                                <p className="text-xs text-[#8B5A2B] mb-1">🎬 Studio</p>
+                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.studioShare)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="border-[#E6DED0] bg-white">

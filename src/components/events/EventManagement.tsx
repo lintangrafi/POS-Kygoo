@@ -23,6 +23,11 @@ type EventItem = {
     endDate: string;
     notes: string | null;
     isActive: boolean;
+    revenueShareType?: 'PERCENTAGE' | 'FIXED';
+    organizerSharePercent?: number;
+    studioSharePercent?: number;
+    organizerShareFixed?: number;
+    studioShareFixed?: number;
 };
 
 function toInputDate(date: string) {
@@ -42,6 +47,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+    const [revenueShareType, setRevenueShareType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
 
     const [bulkEventId, setBulkEventId] = useState('');
     const [bulkFrom, setBulkFrom] = useState('');
@@ -66,24 +72,41 @@ export function EventManagement({ events }: { events: EventItem[] }) {
 
     const openCreateModal = () => {
         setEditingEvent(null);
+        setRevenueShareType('PERCENTAGE');
         setIsModalOpen(true);
     };
 
     const openEditModal = (event: EventItem) => {
         setEditingEvent(event);
+        setRevenueShareType((event.revenueShareType || 'PERCENTAGE') as 'PERCENTAGE' | 'FIXED');
         setIsModalOpen(true);
     };
 
     const handleSubmitEvent = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
-        const payload = {
+        const revenueShareType = String(formData.get('revenueShareType') || 'PERCENTAGE');
+        
+        const payload: any = {
             name: String(formData.get('name') || '').trim(),
             startDate: new Date(String(formData.get('startDate') || '')),
             endDate: new Date(String(formData.get('endDate') || '')),
             notes: String(formData.get('notes') || '').trim(),
             isActive: formData.get('isActive') === 'on',
+            revenueShareType: revenueShareType as 'PERCENTAGE' | 'FIXED',
         };
+
+        if (revenueShareType === 'PERCENTAGE') {
+            const organizerPercent = formData.get('organizerSharePercent');
+            const studioPercent = formData.get('studioSharePercent');
+            if (organizerPercent) payload.organizerSharePercent = Number(organizerPercent);
+            if (studioPercent) payload.studioSharePercent = Number(studioPercent);
+        } else {
+            const organizerFixed = formData.get('organizerShareFixed');
+            const studioFixed = formData.get('studioShareFixed');
+            if (organizerFixed) payload.organizerShareFixed = Number(organizerFixed);
+            if (studioFixed) payload.studioShareFixed = Number(studioFixed);
+        }
 
         if (!payload.name) {
             alert('Event name is required');
@@ -342,6 +365,78 @@ export function EventManagement({ events }: { events: EventItem[] }) {
                                 className="mt-1 w-full rounded-md border border-[#DCCFBF] bg-white px-3 py-2"
                             />
                         </div>
+
+                        {/* Revenue Sharing Section */}
+                        <div className="space-y-3 rounded-lg border border-[#E6DED0] bg-[#FFF8F0] p-3">
+                            <h4 className="text-sm font-semibold text-[#1F1D1A]">Pembagian Hasil</h4>
+                            
+                            <div>
+                                <Label htmlFor="revenueShareType">Tipe Pembagian</Label>
+                                <select
+                                    id="revenueShareType"
+                                    name="revenueShareType"
+                                    value={revenueShareType}
+                                    onChange={(e) => setRevenueShareType(e.target.value as 'PERCENTAGE' | 'FIXED')}
+                                    className="mt-1 w-full rounded-md border border-[#DCCFBF] bg-white px-3 py-2 text-sm"
+                                >
+                                    <option value="PERCENTAGE">Persentase (%)</option>
+                                    <option value="FIXED">Nominal Tetap (Rp)</option>
+                                </select>
+                            </div>
+
+                            {revenueShareType === 'PERCENTAGE' ? (
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <Label htmlFor="organizerSharePercent">Penyelenggara (%)</Label>
+                                        <Input
+                                            id="organizerSharePercent"
+                                            name="organizerSharePercent"
+                                            type="number"
+                                            step="0.01"
+                                            defaultValue={editingEvent?.organizerSharePercent || ''}
+                                            placeholder="e.g., 30"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="studioSharePercent">Studio (%)</Label>
+                                        <Input
+                                            id="studioSharePercent"
+                                            name="studioSharePercent"
+                                            type="number"
+                                            step="0.01"
+                                            defaultValue={editingEvent?.studioSharePercent || ''}
+                                            placeholder="e.g., 70"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <Label htmlFor="organizerShareFixed">Penyelenggara (Rp)</Label>
+                                        <Input
+                                            id="organizerShareFixed"
+                                            name="organizerShareFixed"
+                                            type="number"
+                                            step="100"
+                                            defaultValue={editingEvent?.organizerShareFixed || ''}
+                                            placeholder="e.g., 10000"
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="studioShareFixed">Studio (Rp)</Label>
+                                        <Input
+                                            id="studioShareFixed"
+                                            name="studioShareFixed"
+                                            type="number"
+                                            step="100"
+                                            defaultValue={editingEvent?.studioShareFixed || ''}
+                                            placeholder="e.g., 25000"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         <label className="inline-flex items-center gap-2 text-sm">
                             <input type="checkbox" name="isActive" defaultChecked={editingEvent ? editingEvent.isActive : true} />
                             Active

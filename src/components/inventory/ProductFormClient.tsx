@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 export default function ProductFormClient({ product, mode = 'add' }: any) {
     const [open, setOpen] = useState(false);
     const [categories, setCategories] = useState<any[]>([]);
+    const [events, setEvents] = useState<any[]>([]);
     const [form, setForm] = useState<any>({
         name: product?.name || '',
         sku: product?.sku || '',
@@ -18,6 +19,7 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
         costPrice: product?.costPrice || '',
         stock: product?.stock ?? 0,
         isMenuItem: product?.isMenuItem ?? true,
+        eventId: product?.eventId || null,
     });
     const toast = useToast();
     const router = useRouter();
@@ -25,9 +27,16 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
     useEffect(() => {
         async function load() {
             try {
-                const res = await fetch('/api/inventory/categories');
-                const data = await res.json();
-                if (data.success) setCategories(data.data);
+                const [categoriesRes, eventsRes] = await Promise.all([
+                    fetch('/api/inventory/categories'),
+                    fetch('/api/inventory/events'),
+                ]);
+                
+                const categoriesData = await categoriesRes.json();
+                if (categoriesData.success) setCategories(categoriesData.data);
+                
+                const eventsData = await eventsRes.json();
+                if (eventsData.success) setEvents(eventsData.data);
             } catch (err) {
                 console.error(err);
             }
@@ -53,6 +62,7 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                 costPrice: '',
                 stock: 0,
                 isMenuItem: true,
+                eventId: null,
             });
         }
     }, [open, mode]);
@@ -76,6 +86,7 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                 costPrice: String(form.costPrice || 0),
                 stock: Number(form.stock) || 0,
                 isMenuItem: Boolean(form.isMenuItem),
+                eventId: form.eventId ? Number(form.eventId) : null,
             };
 
             const url = mode === 'add' ? '/api/inventory/add-product' : '/api/inventory/update-product';
@@ -113,6 +124,15 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                             <option value="">Select category</option>
                             {categories.map((c: any) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm text-muted-foreground">Event (Optional - leave empty for Studio)</label>
+                        <select value={form.eventId || ''} onChange={(e) => setField('eventId', e.target.value ? Number(e.target.value) : null)} className="mt-1 block w-full rounded-md border px-3 py-2">
+                            <option value="">Studio (No event)</option>
+                            {events.map((e: any) => (
+                                <option key={e.id} value={e.id}>{e.name}</option>
                             ))}
                         </select>
                     </div>

@@ -12,6 +12,11 @@ type EventInput = {
     endDate: Date;
     notes?: string;
     isActive?: boolean;
+    revenueShareType?: 'PERCENTAGE' | 'FIXED';
+    organizerSharePercent?: number;
+    studioSharePercent?: number;
+    organizerShareFixed?: number;
+    studioShareFixed?: number;
 };
 
 function startOfDay(date: Date) {
@@ -184,6 +189,11 @@ export async function createEvent(data: EventInput) {
         endDate,
         notes: data.notes?.trim() || null,
         isActive: data.isActive ?? true,
+        revenueShareType: (data.revenueShareType ?? 'PERCENTAGE').toString(),
+        organizerSharePercent: data.organizerSharePercent ? data.organizerSharePercent.toString() : null,
+        studioSharePercent: data.studioSharePercent ? data.studioSharePercent.toString() : null,
+        organizerShareFixed: data.organizerShareFixed ? data.organizerShareFixed.toString() : null,
+        studioShareFixed: data.studioShareFixed ? data.studioShareFixed.toString() : null,
         createdBy: session.userId,
     }).returning();
 
@@ -235,6 +245,11 @@ export async function updateEvent(id: number, data: Partial<EventInput>) {
             endDate: nextEnd,
             notes: (data.notes ?? existing.notes)?.toString().trim() || null,
             isActive: nextActive,
+            revenueShareType: data.revenueShareType ?? existing.revenueShareType,
+            organizerSharePercent: data.organizerSharePercent ? data.organizerSharePercent.toString() : undefined,
+            studioSharePercent: data.studioSharePercent ? data.studioSharePercent.toString() : undefined,
+            organizerShareFixed: data.organizerShareFixed ? data.organizerShareFixed.toString() : undefined,
+            studioShareFixed: data.studioShareFixed ? data.studioShareFixed.toString() : undefined,
             updatedAt: new Date(),
         })
         .where(eq(events.id, id))

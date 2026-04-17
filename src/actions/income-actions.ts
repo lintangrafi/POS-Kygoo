@@ -57,13 +57,20 @@ export async function addIncome(data: {
         throw new Error('Only admins can add incomes');
     }
 
+    // Auto-assign to user's event if not specified
+    let finalEventId = data.eventId;
+    if (finalEventId === undefined || finalEventId === null) {
+        const userEventId = await getCurrentUserEventId();
+        finalEventId = userEventId;
+    }
+
     const [income] = await db.insert(incomes).values({
         userId: session.userId,
         description: data.description,
         amount: data.amount.toString(),
         category: data.category,
         paymentMethod: data.paymentMethod,
-        eventId: data.eventId ?? null,
+        eventId: finalEventId ?? null,
         date: data.date,
         notes: data.notes || null,
     }).returning();

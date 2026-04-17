@@ -537,12 +537,36 @@ export function CartSidebar({
     return (
         <div className="flex flex-col h-full border-l border-[#E6DED0] bg-white">
             {/* Cart Header */}
-            <div className="p-4 border-b border-[#E6DED0] bg-[#FCFAF6]">
+            <div className="p-4 border-b border-[#E6DED0] bg-[#FCFAF6] space-y-3">
                 <div className="flex items-center justify-between">
                     <h2 className="font-bold text-lg">Cart</h2>
                     <span className="text-sm text-[#6F6659]">{activeOpenBill ? 'Open Bill' : 'Walk-in'}</span>
                 </div>
                 <span className="text-sm text-[#8B7C6B]">{cart.length} items</span>
+                
+                {/* Event Selector - Always Visible */}
+                {eventOptions.length > 0 && (
+                    <div className="pt-2 border-t border-[#E6DED0]">
+                        <label className="text-xs font-semibold text-[#6F6659] block mb-2">Transaction Type</label>
+                        <select
+                            value={selectedEventId ?? ''}
+                            onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
+                            className="w-full h-9 rounded-md border border-[#C86B2A] bg-[#FFF8F0] px-3 text-sm font-medium text-[#1F1D1A]"
+                        >
+                            <option value="">Studio (No Event)</option>
+                            {eventOptions.map((event) => (
+                                <option key={event.id} value={event.id}>
+                                    📅 {event.name}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedEventId && (
+                            <div className="mt-2 text-xs bg-[#FFF8F0] px-2 py-1 rounded border border-[#C86B2A] text-[#8B5A00]">
+                                ✓ Transaksi akan masuk ke event <strong>{eventOptions.find(e => e.id === selectedEventId)?.name}</strong>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Cart Items */}
@@ -855,18 +879,6 @@ export function CartSidebar({
                                     placeholder="Catatan bill"
                                     className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
                                 />
-                                <select
-                                    value={selectedEventId ?? ''}
-                                    onChange={(e) => setSelectedEventId(e.target.value ? Number(e.target.value) : null)}
-                                    className="h-9 rounded-md border border-[#E6DED0] bg-white px-3 text-sm"
-                                >
-                                    <option value="">No event</option>
-                                    {eventOptions.map((event) => (
-                                        <option key={event.id} value={event.id}>
-                                            {event.name}
-                                        </option>
-                                    ))}
-                                </select>
                             </div>
 
                             <div className="flex-shrink-0 grid grid-cols-3 gap-2">

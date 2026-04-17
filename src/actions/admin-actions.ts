@@ -226,7 +226,7 @@ export async function getOrderById(id: number) {
             },
             where: and(
                 eq(orders.id, id),
-                userEventId ? eq(orders.eventId, userEventId) : undefined
+                ...(userEventId ? [eq(orders.eventId, userEventId)] : [])
             ),
             with: {
                 user: true,

@@ -72,7 +72,7 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            filterEventId ? eq(orders.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(orders.eventId, filterEventId)] : [])
         ),
         with: {
             items: true,
@@ -134,7 +134,7 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(expenses.eventId, filterEventId)] : [])
         ),
         with: {
             user: true,
@@ -154,7 +154,7 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
         where: and(
             gte(incomes.date, from),
             lt(incomes.date, to),
-            filterEventId ? eq(incomes.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(incomes.eventId, filterEventId)] : [])
         ),
         with: {
             user: true,
@@ -214,7 +214,7 @@ export async function getTopProducts({ from, to, limit = 10, eventId }: { from: 
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            filterEventId ? eq(orders.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(orders.eventId, filterEventId)] : [])
         ),
     });
     const orderIds = ordersInRange.map(o => o.id);
@@ -268,7 +268,7 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            filterEventId ? eq(orders.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(orders.eventId, filterEventId)] : [])
         ),
         with: {
             payments: true,
@@ -350,7 +350,7 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(expenses.eventId, filterEventId)] : [])
         ),
     });
 
@@ -388,7 +388,7 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
             gte(orders.createdAt, from),
             lt(orders.createdAt, to),
             eq(orders.status, 'COMPLETED'),
-            filterEventId ? eq(orders.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(orders.eventId, filterEventId)] : [])
         ),
         with: {
             items: true,
@@ -401,7 +401,7 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
         where: and(
             gte(expenses.date, from),
             lt(expenses.date, to),
-            filterEventId ? eq(expenses.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(expenses.eventId, filterEventId)] : [])
         ),
     });
 
@@ -410,7 +410,7 @@ export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: 
         where: and(
             gte(incomes.date, from),
             lt(incomes.date, to),
-            filterEventId ? eq(incomes.eventId, filterEventId) : undefined
+            ...(filterEventId ? [eq(incomes.eventId, filterEventId)] : [])
         ),
     });
 

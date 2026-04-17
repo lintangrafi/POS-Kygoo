@@ -4,14 +4,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run db:push && npm run db:seed && next build",
     "start": "next start",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "lint": "next lint",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "node scripts/seed-user.js"
   },
   "keywords": [],
   "author": "",

@@ -331,7 +331,7 @@ export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
     const bill = await db.query.openBills.findFirst({
         where: and(
             eq(openBills.invoiceNumber, invoiceNumber),
-            userEventId ? eq(openBills.eventId, userEventId) : undefined
+            ...(userEventId ? [eq(openBills.eventId, userEventId)] : [])
         ),
         with: { items: true },
     });
@@ -392,7 +392,7 @@ export async function getOpenBillsByRange(params: { from: Date; to: Date }) {
         where: and(
             gte(openBills.createdAt, params.from),
             lt(openBills.createdAt, params.to),
-            userEventId ? eq(openBills.eventId, userEventId) : undefined
+            ...(userEventId ? [eq(openBills.eventId, userEventId)] : [])
         ),
         with: { items: true },
         orderBy: [desc(openBills.createdAt)],

@@ -40,13 +40,17 @@ export async function getPosData() {
 
     const allCategories = await db.query.categories.findMany();
     const allProducts = await db.query.products.findMany({
-        where: (products, { gt, eq, isNull, and }) => {
+        where: (products, { gt, eq, isNull, or, and }) => {
             const conditions: any[] = [];
             conditions.push(gt(products.stock, -1000));
-            // Event users: only their event items.
-            // Studio users: fetch all items, then client can switch between Studio/Event view.
+            
+            // Event users can see: studio items (eventId NULL) + their own event items
+            // Studio users can see: everything (no eventId filter)
             if (userEventId) {
-                conditions.push(eq(products.eventId, userEventId));
+                conditions.push(or(
+                    isNull(products.eventId),
+                    eq(products.eventId, userEventId)
+                ));
             }
             return and(...conditions);
         },

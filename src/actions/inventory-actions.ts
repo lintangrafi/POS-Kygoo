@@ -39,9 +39,15 @@ export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 
 export async function addProduct(payload: { categoryId: number; sku?: string; name: string; price: string | number; costPrice?: string | number; stock?: number; isMenuItem?: boolean; eventId?: number }) {
     const session = await requireAdmin();
 
+    // Get the user's event ID to auto-assign products created by event admins
+    const userEventId = await getCurrentUserEventId();
+    
+    // If eventId not explicitly provided, use user's event if they are event-scoped
+    const finalEventId = payload.eventId !== undefined ? payload.eventId : (userEventId || null);
+
     const [p] = await db.insert(products).values({
         categoryId: payload.categoryId,
-        eventId: payload.eventId || null,
+        eventId: finalEventId,
         sku: payload.sku,
         name: payload.name,
         price: payload.price.toString(),

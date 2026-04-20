@@ -442,6 +442,34 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 <div className="mt-4 space-y-4">
                     <Card>
                         <CardHeader>
+                            <CardTitle>Revenue Share Breakdown</CardTitle>
+                            <CardDescription>Pembagian pembayaran untuk periode terpilih.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {r.revenueShare && r.event ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] p-3">
+                                        <div className="text-xs text-[#6F6659]">Total Revenue</div>
+                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.total)}</div>
+                                    </div>
+                                    <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
+                                        <div className="text-xs text-[#8B6F47]">Penyelenggara</div>
+                                        <div className="text-lg font-semibold text-[#C86B2A]">{formatRupiah(r.revenueShare.organizerShare)}</div>
+                                    </div>
+                                    <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
+                                        <div className="text-xs text-[#8B5A2B]">Studio</div>
+                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.studioShare)}</div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-muted-foreground">
+                                    Pilih event untuk melihat pembagian pembayaran.
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
                             <CardTitle>Expenses & Income by Payment Method</CardTitle>
                             <CardDescription>Breakdown of cash vs QRIS for selected period</CardDescription>
                         </CardHeader>

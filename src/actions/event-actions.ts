@@ -1,9 +1,21 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { and, eq, gte, lte, lt, desc, ne } from 'drizzle-orm';
+import { and, eq, gte, lte, lt, desc, ne, inArray } from 'drizzle-orm';
 import { db } from '@/db';
-import { auditLogs, events, expenses, incomes, orders } from '@/db/schema';
+import {
+    auditLogs,
+    events,
+    expenses,
+    incomes,
+    openBillItems,
+    openBills,
+    orderItems,
+    orders,
+    payments,
+    products,
+    users,
+} from '@/db/schema';
 import { verifySession } from '@/lib/auth';
 
 type EventInput = {
@@ -280,7 +292,38 @@ export async function deleteEvent(id: number) {
         throw new Error('Event not found');
     }
 
-    await db.delete(events).where(eq(events.id, id));
+    await db.transaction(async (tx) => {
+        const orderIds = await tx.query.orders.findMany({
+            where: eq(orders.eventId, id),
+            columns: { id: true },
+        });
+        const orderIdList = orderIds.map((row) => row.id);
+
+        if (orderIdList.length > 0) {
+            await tx.delete(payments).where(inArray(payments.orderId, orderIdList));
+            await tx.delete(orderItems).where(inArray(orderItems.orderId, orderIdList));
+            await tx.delete(orders).where(inArray(orders.id, orderIdList));
+        }
+
+        const openBillIds = await tx.query.openBills.findMany({
+            where: eq(openBills.eventId, id),
+            columns: { id: true },
+        });
+        const openBillIdList = openBillIds.map((row) => row.id);
+
+        if (openBillIdList.length > 0) {
+            await tx.delete(openBillItems).where(inArray(openBillItems.openBillId, openBillIdList));
+            await tx.delete(openBills).where(inArray(openBills.id, openBillIdList));
+        }
+
+        await tx.delete(expenses).where(eq(expenses.eventId, id));
+        await tx.delete(incomes).where(eq(incomes.eventId, id));
+        await tx.delete(products).where(eq(products.eventId, id));
+
+        await tx.update(users).set({ eventId: null }).where(eq(users.eventId, id));
+
+        await tx.delete(events).where(eq(events.id, id));
+    });
 
     await db.insert(auditLogs).values({
         userId: session.userId,

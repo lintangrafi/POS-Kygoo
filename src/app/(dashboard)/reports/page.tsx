@@ -140,10 +140,13 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     let studioShare = 0;
 
                     for (const order of r.orders || []) {
-                        const paid = (order.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-                        const organizerTake = Math.min(organizerFixed, paid);
-                        organizerShare += organizerTake;
-                        studioShare += Math.max(0, paid - organizerTake);
+                        for (const item of order.items || []) {
+                            const unitPrice = Number(item.priceAtSale || 0);
+                            const qty = Number(item.quantity || 0);
+                            const organizerTake = Math.min(organizerFixed, unitPrice);
+                            organizerShare += organizerTake * qty;
+                            studioShare += Math.max(0, unitPrice - organizerTake) * qty;
+                        }
                     }
 
                     return {

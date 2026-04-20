@@ -182,10 +182,13 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
             let studioShare = 0;
 
             for (const o of ordersInRange) {
-                const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
-                const organizerTake = Math.min(organizerFixed, paid);
-                organizerShare += organizerTake;
-                studioShare += Math.max(0, paid - organizerTake);
+                for (const it of o.items || []) {
+                    const unitPrice = Number(it.priceAtSale || 0);
+                    const qty = Number(it.quantity || 0);
+                    const organizerTake = Math.min(organizerFixed, unitPrice);
+                    organizerShare += organizerTake * qty;
+                    studioShare += Math.max(0, unitPrice - organizerTake) * qty;
+                }
             }
 
             revenueShare = {

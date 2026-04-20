@@ -174,13 +174,36 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
     }
 
     // Calculate revenue sharing if event has configuration
-    const revenueShare = eventData ? calculateRevenueShare(turnover, {
-        revenueShareType: eventData.revenueShareType,
-        organizerSharePercent: eventData.organizerSharePercent,
-        studioSharePercent: eventData.studioSharePercent,
-        organizerShareFixed: eventData.organizerShareFixed,
-        studioShareFixed: eventData.studioShareFixed,
-    }) : null;
+    let revenueShare: ReturnType<typeof calculateRevenueShare> | null = null;
+    if (eventData) {
+        if (eventData.revenueShareType === 'FIXED') {
+            const organizerFixed = Number(eventData.organizerShareFixed || 0);
+            let organizerShare = 0;
+            let studioShare = 0;
+
+            for (const o of ordersInRange) {
+                const paid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+                const organizerTake = Math.min(organizerFixed, paid);
+                organizerShare += organizerTake;
+                studioShare += Math.max(0, paid - organizerTake);
+            }
+
+            revenueShare = {
+                total: turnover,
+                organizerShare: Math.round(organizerShare * 100) / 100,
+                studioShare: Math.round(studioShare * 100) / 100,
+                type: 'FIXED' as const,
+            };
+        } else {
+            revenueShare = calculateRevenueShare(turnover, {
+                revenueShareType: eventData.revenueShareType,
+                organizerSharePercent: eventData.organizerSharePercent,
+                studioSharePercent: eventData.studioSharePercent,
+                organizerShareFixed: eventData.organizerShareFixed,
+                studioShareFixed: eventData.studioShareFixed,
+            });
+        }
+    }
 
     return {
         turnover,

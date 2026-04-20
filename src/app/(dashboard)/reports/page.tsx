@@ -133,13 +133,33 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
         : null;
     const reportRevenueShare = r.revenueShare || (
         selectedEventForShare
-            ? calculateRevenueShare(r.turnover, {
-                revenueShareType: selectedEventForShare.revenueShareType,
-                organizerSharePercent: selectedEventForShare.organizerSharePercent,
-                studioSharePercent: selectedEventForShare.studioSharePercent,
-                organizerShareFixed: selectedEventForShare.organizerShareFixed,
-                studioShareFixed: selectedEventForShare.studioShareFixed,
-            })
+            ? (selectedEventForShare.revenueShareType === 'FIXED'
+                ? (() => {
+                    const organizerFixed = Number(selectedEventForShare.organizerShareFixed || 0);
+                    let organizerShare = 0;
+                    let studioShare = 0;
+
+                    for (const order of r.orders || []) {
+                        const paid = (order.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+                        const organizerTake = Math.min(organizerFixed, paid);
+                        organizerShare += organizerTake;
+                        studioShare += Math.max(0, paid - organizerTake);
+                    }
+
+                    return {
+                        total: r.turnover,
+                        organizerShare: Math.round(organizerShare * 100) / 100,
+                        studioShare: Math.round(studioShare * 100) / 100,
+                        type: 'FIXED' as const,
+                    };
+                })()
+                : calculateRevenueShare(r.turnover, {
+                    revenueShareType: selectedEventForShare.revenueShareType,
+                    organizerSharePercent: selectedEventForShare.organizerSharePercent,
+                    studioSharePercent: selectedEventForShare.studioSharePercent,
+                    organizerShareFixed: selectedEventForShare.organizerShareFixed,
+                    studioShareFixed: selectedEventForShare.studioShareFixed,
+                }))
             : null
     );
 

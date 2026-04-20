@@ -279,7 +279,7 @@ export async function getOpenBills() {
     }));
 }
 
-export async function getOpenBillById(billId: number) {
+export async function getOpenBillById(billId: number, options?: { bypassUserEventScope?: boolean }) {
     await verifySession();
 
     // Get user's event if assigned
@@ -288,7 +288,7 @@ export async function getOpenBillById(billId: number) {
     const bill = await db.query.openBills.findFirst({
         where: (openBillsTable, { and: andOp, eq: eqOp }) => {
             const conditions: any[] = [eqOp(openBillsTable.id, billId)];
-            if (userEventId) {
+            if (!options?.bypassUserEventScope && userEventId) {
                 conditions.push(eqOp(openBillsTable.eventId, userEventId));
             }
             return andOp(...conditions);
@@ -328,7 +328,7 @@ export async function getOpenBillById(billId: number) {
     };
 }
 
-export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
+export async function getOpenBillByInvoiceNumber(invoiceNumber: string, options?: { bypassUserEventScope?: boolean }) {
     await verifySession();
 
     // Get user's event if assigned
@@ -337,7 +337,7 @@ export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
     const bill = await db.query.openBills.findFirst({
         where: and(
             eq(openBills.invoiceNumber, invoiceNumber),
-            ...(userEventId ? [eq(openBills.eventId, userEventId)] : [])
+            ...(!options?.bypassUserEventScope && userEventId ? [eq(openBills.eventId, userEventId)] : [])
         ),
         with: { items: true },
     });
@@ -367,7 +367,7 @@ export async function getOpenBillByInvoiceNumber(invoiceNumber: string) {
     };
 }
 
-export async function getOpenBillByOrderId(orderId: number) {
+export async function getOpenBillByOrderId(orderId: number, options?: { bypassUserEventScope?: boolean }) {
     await verifySession();
 
     const log = await db.query.auditLogs.findFirst({
@@ -380,7 +380,7 @@ export async function getOpenBillByOrderId(orderId: number) {
     try {
         const parsed = JSON.parse(log.newValue);
         if (!parsed?.openBillId) return null;
-        const result = await getOpenBillById(parsed.openBillId);
+        const result = await getOpenBillById(parsed.openBillId, options);
         if (!result?.success) return null;
         return result.bill;
     } catch {
@@ -388,7 +388,7 @@ export async function getOpenBillByOrderId(orderId: number) {
     }
 }
 
-export async function getOpenBillsByRange(params: { from: Date; to: Date }) {
+export async function getOpenBillsByRange(params: { from: Date; to: Date; eventId?: number; bypassUserEventScope?: boolean }) {
     await verifySession();
 
     // Get user's event if assigned
@@ -398,7 +398,8 @@ export async function getOpenBillsByRange(params: { from: Date; to: Date }) {
         where: and(
             gte(openBills.createdAt, params.from),
             lt(openBills.createdAt, params.to),
-            ...(userEventId ? [eq(openBills.eventId, userEventId)] : [])
+            ...(!params.bypassUserEventScope && userEventId ? [eq(openBills.eventId, userEventId)] : []),
+            ...(params.eventId ? [eq(openBills.eventId, params.eventId)] : [])
         ),
         with: { items: true },
         orderBy: [desc(openBills.createdAt)],

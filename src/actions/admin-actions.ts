@@ -134,8 +134,20 @@ export async function requireAdmin() {
     return session;
 }
 
-export async function getOrders({ limit = 50, from, to }: { limit?: number; from?: Date; to?: Date } = {}) {
-    await requireAdmin();
+export async function getOrders({
+    limit = 50,
+    from,
+    to,
+    eventId,
+    bypassUserEventScope = false,
+}: {
+    limit?: number;
+    from?: Date;
+    to?: Date;
+    eventId?: number;
+    bypassUserEventScope?: boolean;
+} = {}) {
+    const session = await requireAdmin();
 
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
@@ -144,7 +156,11 @@ export async function getOrders({ limit = 50, from, to }: { limit?: number; from
         const conds: any[] = [];
         if (from) conds.push(gteOp(ordersTable.createdAt, from));
         if (to) conds.push(ltOp(ordersTable.createdAt, to));
-        if (userEventId) conds.push(eqOp(ordersTable.eventId, userEventId));
+        if (!bypassUserEventScope && userEventId) {
+            conds.push(eqOp(ordersTable.eventId, userEventId));
+        } else if (session.role === 'SUPERADMIN' || session.role === 'ADMIN') {
+            if (eventId) conds.push(eqOp(ordersTable.eventId, eventId));
+        }
         if (conds.length === 0) return undefined;
         return andOp(...conds);
     };
@@ -207,9 +223,6 @@ export async function getOrderById(id: number) {
 
     console.log('[getOrderById] called by', { userId: session.userId, role: session.role }, 'for id', id);
 
-    // Get user's event if assigned
-    const userEventId = await getCurrentUserEventId();
-
     let order: any = null;
     try {
         order = await db.query.orders.findFirst({
@@ -225,8 +238,7 @@ export async function getOrderById(id: number) {
                 createdAt: true,
             },
             where: and(
-                eq(orders.id, id),
-                ...(userEventId ? [eq(orders.eventId, userEventId)] : [])
+                eq(orders.id, id)
             ),
             with: {
                 user: true,

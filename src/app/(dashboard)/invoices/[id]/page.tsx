@@ -39,9 +39,9 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
 
     let openBill: any = null;
     if (order.invoiceNumber.startsWith('OB-')) {
-        openBill = await getOpenBillByInvoiceNumber(order.invoiceNumber);
+        openBill = await getOpenBillByInvoiceNumber(order.invoiceNumber, { bypassUserEventScope: true });
     } else {
-        openBill = await getOpenBillByOrderId(order.id);
+        openBill = await getOpenBillByOrderId(order.id, { bypassUserEventScope: true });
     }
 
     return (

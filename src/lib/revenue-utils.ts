@@ -12,7 +12,7 @@ export function calculateRevenueShare(total: number, eventConfig: {
     
     if (shareType === 'PERCENTAGE') {
         const organizerPercent = Number(eventConfig.organizerSharePercent || 0);
-        const studioPercent = Number(eventConfig.studioSharePercent || 0);
+        const studioPercent = Math.max(0, 100 - organizerPercent);
         
         const organizerShare = (total * organizerPercent) / 100;
         const studioShare = (total * studioPercent) / 100;
@@ -27,12 +27,12 @@ export function calculateRevenueShare(total: number, eventConfig: {
         };
     } else {
         const organizerFixed = Number(eventConfig.organizerShareFixed || 0);
-        const studioFixed = Number(eventConfig.studioShareFixed || 0);
-        
+        const remainder = Math.max(0, total - organizerFixed);
+
         return {
             total,
             organizerShare: organizerFixed,
-            studioShare: studioFixed,
+            studioShare: remainder,
             type: 'FIXED' as const,
         };
     }

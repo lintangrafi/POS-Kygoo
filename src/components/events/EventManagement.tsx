@@ -98,14 +98,10 @@ export function EventManagement({ events }: { events: EventItem[] }) {
 
         if (revenueShareType === 'PERCENTAGE') {
             const organizerPercent = formData.get('organizerSharePercent');
-            const studioPercent = formData.get('studioSharePercent');
             if (organizerPercent) payload.organizerSharePercent = Number(organizerPercent);
-            if (studioPercent) payload.studioSharePercent = Number(studioPercent);
         } else {
             const organizerFixed = formData.get('organizerShareFixed');
-            const studioFixed = formData.get('studioShareFixed');
             if (organizerFixed) payload.organizerShareFixed = Number(organizerFixed);
-            if (studioFixed) payload.studioShareFixed = Number(studioFixed);
         }
 
         if (!payload.name) {
@@ -396,17 +392,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
                                             defaultValue={editingEvent?.organizerSharePercent || ''}
                                             placeholder="e.g., 30"
                                         />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="studioSharePercent">Studio (%)</Label>
-                                        <Input
-                                            id="studioSharePercent"
-                                            name="studioSharePercent"
-                                            type="number"
-                                            step="0.01"
-                                            defaultValue={editingEvent?.studioSharePercent || ''}
-                                            placeholder="e.g., 70"
-                                        />
+                                        <p className="mt-1 text-xs text-muted-foreground">Sisa otomatis masuk ke studio.</p>
                                     </div>
                                 </div>
                             ) : (
@@ -421,17 +407,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
                                             defaultValue={editingEvent?.organizerShareFixed || ''}
                                             placeholder="e.g., 10000"
                                         />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="studioShareFixed">Studio (Rp)</Label>
-                                        <Input
-                                            id="studioShareFixed"
-                                            name="studioShareFixed"
-                                            type="number"
-                                            step="100"
-                                            defaultValue={editingEvent?.studioShareFixed || ''}
-                                            placeholder="e.g., 25000"
-                                        />
+                                        <p className="mt-1 text-xs text-muted-foreground">Sisa otomatis masuk ke studio.</p>
                                     </div>
                                 </div>
                             )}

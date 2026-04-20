@@ -12,6 +12,7 @@ import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { verifySession } from '@/lib/auth';
+import { calculateRevenueShare } from '@/lib/revenue-utils';
 
 export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`
@@ -126,6 +127,21 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
         getEventOptions(),
         getActiveEvent(),
     ]);
+
+    const selectedEventForShare = selectedEventId
+        ? eventOptions.find((event) => event.id === selectedEventId)
+        : null;
+    const reportRevenueShare = r.revenueShare || (
+        selectedEventForShare
+            ? calculateRevenueShare(r.turnover, {
+                revenueShareType: selectedEventForShare.revenueShareType,
+                organizerSharePercent: selectedEventForShare.organizerSharePercent,
+                studioSharePercent: selectedEventForShare.studioSharePercent,
+                organizerShareFixed: selectedEventForShare.organizerShareFixed,
+                studioShareFixed: selectedEventForShare.studioShareFixed,
+            })
+            : null
+    );
 
     // fetch daily cashflow detailed breakdown
     const dailyCashflow = await getDailyCashflow({
@@ -347,15 +363,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </div>
 
             {/* Revenue Sharing Display */}
-            {r.revenueShare && r.event && (
+            {reportRevenueShare && (r.event || selectedEventForShare) && (
                 <Card className="border-[#E6DED0] bg-[#FFF8F0]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            💰 Pembagian Hasil - {r.event.name}
+                            💰 Pembagian Hasil - {(r.event?.name || selectedEventForShare?.name) ?? 'Event'}
                         </CardTitle>
                         <CardDescription>
-                            {r.revenueShare.type === 'PERCENTAGE' 
-                                ? `Persentase: Penyelenggara ${r.revenueShare.organizerPercent}% | Studio ${r.revenueShare.studioPercent}%`
+                            {reportRevenueShare.type === 'PERCENTAGE' 
+                                ? `Persentase: Penyelenggara ${reportRevenueShare.organizerPercent}% | Studio ${reportRevenueShare.studioPercent}%`
                                 : 'Nominal Tetap'}
                         </CardDescription>
                     </CardHeader>
@@ -363,15 +379,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div className="rounded-lg border border-[#E6DED0] bg-white p-3">
                                 <p className="text-xs text-[#6F6659] mb-1">Total Revenue</p>
-                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.total)}</p>
+                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.total)}</p>
                             </div>
                             <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
                                 <p className="text-xs text-[#8B6F47] mb-1">🏢 Penyelenggara</p>
-                                <p className="text-xl font-semibold text-[#C86B2A]">{formatRupiah(r.revenueShare.organizerShare)}</p>
+                                <p className="text-xl font-semibold text-[#C86B2A]">{formatRupiah(reportRevenueShare.organizerShare)}</p>
                             </div>
                             <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
                                 <p className="text-xs text-[#8B5A2B] mb-1">🎬 Studio</p>
-                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.studioShare)}</p>
+                                <p className="text-xl font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.studioShare)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -446,19 +462,19 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                             <CardDescription>Pembagian pembayaran untuk periode terpilih.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {r.revenueShare && r.event ? (
+                            {reportRevenueShare && (r.event || selectedEventForShare) ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] p-3">
                                         <div className="text-xs text-[#6F6659]">Total Revenue</div>
-                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.total)}</div>
+                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.total)}</div>
                                     </div>
                                     <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
                                         <div className="text-xs text-[#8B6F47]">Penyelenggara</div>
-                                        <div className="text-lg font-semibold text-[#C86B2A]">{formatRupiah(r.revenueShare.organizerShare)}</div>
+                                        <div className="text-lg font-semibold text-[#C86B2A]">{formatRupiah(reportRevenueShare.organizerShare)}</div>
                                     </div>
                                     <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
                                         <div className="text-xs text-[#8B5A2B]">Studio</div>
-                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(r.revenueShare.studioShare)}</div>
+                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.studioShare)}</div>
                                     </div>
                                 </div>
                             ) : (

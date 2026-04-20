@@ -148,7 +148,17 @@ export async function getActiveEvent(onDate?: Date) {
 export async function getEventOptions() {
     await verifySession();
 
-    let rows: Array<{ id: number; name: string; startDate: Date; endDate: Date }> = [];
+    let rows: Array<{
+        id: number;
+        name: string;
+        startDate: Date;
+        endDate: Date;
+        revenueShareType: string | null;
+        organizerSharePercent: string | null;
+        studioSharePercent: string | null;
+        organizerShareFixed: string | null;
+        studioShareFixed: string | null;
+    }> = [];
     try {
         // Return ALL events (both active and inactive) so users can assign transactions to any event, regardless of active status
         rows = await db.query.events.findMany({
@@ -158,6 +168,11 @@ export async function getEventOptions() {
                 name: true,
                 startDate: true,
                 endDate: true,
+                revenueShareType: true,
+                organizerSharePercent: true,
+                studioSharePercent: true,
+                organizerShareFixed: true,
+                studioShareFixed: true,
             },
         });
     } catch (error) {
@@ -173,6 +188,11 @@ export async function getEventOptions() {
         name: row.name,
         startDate: row.startDate,
         endDate: row.endDate,
+        revenueShareType: row.revenueShareType,
+        organizerSharePercent: row.organizerSharePercent ? Number(row.organizerSharePercent) : null,
+        studioSharePercent: row.studioSharePercent ? Number(row.studioSharePercent) : null,
+        organizerShareFixed: row.organizerShareFixed ? Number(row.organizerShareFixed) : null,
+        studioShareFixed: row.studioShareFixed ? Number(row.studioShareFixed) : null,
     }));
 }
 

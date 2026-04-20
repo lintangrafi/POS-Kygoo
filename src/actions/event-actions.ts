@@ -191,9 +191,6 @@ export async function createEvent(data: EventInput) {
         throw new Error('Event start date must be before end date');
     }
 
-    if (data.isActive !== false) {
-        await validateNoOverlap(startDate, endDate);
-    }
 
     const [created] = await db.insert(events).values({
         name: data.name.trim(),
@@ -246,9 +243,6 @@ export async function updateEvent(id: number, data: Partial<EventInput>) {
         throw new Error('Event start date must be before end date');
     }
 
-    if (nextActive) {
-        await validateNoOverlap(nextStart, nextEnd, id);
-    }
 
     const [updated] = await db.update(events)
         .set({

@@ -216,7 +216,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
             <Card className="border-[#E6DED0] bg-white">
                 <CardHeader>
                     <CardTitle>Events</CardTitle>
-                    <CardDescription>Aturan sistem: event aktif tidak boleh overlap tanggal.</CardDescription>
+                    <CardDescription>Event aktif boleh overlap tanggal. Pilih event saat transaksi jika diperlukan.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {sortedEvents.length === 0 ? (
@@ -324,7 +324,7 @@ export function EventManagement({ events }: { events: EventItem[] }) {
                     <DialogHeader>
                         <DialogTitle>{editingEvent ? 'Edit Event' : 'Create Event'}</DialogTitle>
                         <DialogDescription>
-                            Event aktif tidak boleh overlap dengan event aktif lain pada tanggal yang sama.
+                            Event aktif boleh overlap dengan event aktif lain pada tanggal yang sama.
                         </DialogDescription>
                     </DialogHeader>
 

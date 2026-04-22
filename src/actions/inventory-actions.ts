@@ -6,6 +6,7 @@ import { eq, and, desc, sql, or, isNull } from 'drizzle-orm';
 import { requireAdmin } from './admin-actions';
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
+import { requireStudioAdmin } from '@/lib/access-control';
 
 export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 1, from, to }: { productId?: number; limit?: number; page?: number; from?: Date; to?: Date } = {}) {
     // Allow any authenticated user (cashier or admin) to view recent adjustments
@@ -36,14 +37,34 @@ export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 
     return { data, total };
 }
 
-export async function addProduct(payload: { categoryId: number; sku?: string; name: string; price: string | number; costPrice?: string | number; stock?: number; isMenuItem?: boolean; eventId?: number }) {
-    const session = await requireAdmin();
+export async function addProduct(payload: {
+    categoryId: number;
+    sku?: string;
+    name: string;
+    price: string | number;
+    costPrice?: string | number;
+    stock?: number;
+    isMenuItem?: boolean;
+    eventId?: number;
+    organizerShareType?: 'PERCENTAGE' | 'FIXED' | null;
+    organizerShareValue?: string | number | null;
+}) {
+    const { session } = await requireStudioAdmin();
 
     // Get the user's event ID to auto-assign products created by event admins
     const userEventId = await getCurrentUserEventId();
     
     // If eventId not explicitly provided, use user's event if they are event-scoped
     const finalEventId = payload.eventId !== undefined ? payload.eventId : (userEventId || null);
+    const normalizedShareType = (payload.organizerShareType || 'FIXED').toUpperCase() as 'PERCENTAGE' | 'FIXED';
+    const rawShareValue = Number(payload.organizerShareValue || 0);
+    const normalizedShareValue = normalizedShareType === 'PERCENTAGE'
+        ? Math.min(100, Math.max(0, rawShareValue))
+        : Math.max(0, rawShareValue);
+
+    if (finalEventId && normalizedShareValue <= 0) {
+        throw new Error('Nilai pembagian penyelenggara wajib diisi untuk item event.');
+    }
 
     const [p] = await db.insert(products).values({
         categoryId: payload.categoryId,
@@ -51,6 +72,10 @@ export async function addProduct(payload: { categoryId: number; sku?: string; na
         sku: payload.sku,
         name: payload.name,
         price: payload.price.toString(),
+        organizerShareType: finalEventId ? normalizedShareType : null,
+        organizerShareValue: finalEventId && normalizedShareValue > 0
+            ? normalizedShareValue.toString()
+            : null,
         costPrice: (payload.costPrice || 0).toString(),
         stock: payload.stock || 0,
         isMenuItem: typeof payload.isMenuItem === 'boolean' ? payload.isMenuItem : true,
@@ -68,17 +93,58 @@ export async function addProduct(payload: { categoryId: number; sku?: string; na
     return p;
 }
 
-export async function updateProduct(id: number, payload: { name?: string; price?: string | number; costPrice?: string | number; sku?: string; categoryId?: number; isMenuItem?: boolean; eventId?: number | null }) {
-    const session = await requireAdmin();
+export async function updateProduct(id: number, payload: {
+    name?: string;
+    price?: string | number;
+    costPrice?: string | number;
+    sku?: string;
+    categoryId?: number;
+    isMenuItem?: boolean;
+    eventId?: number | null;
+    organizerShareType?: 'PERCENTAGE' | 'FIXED' | null;
+    organizerShareValue?: string | number | null;
+}) {
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, id) });
     if (!existing) throw new Error('Product not found');
 
     const oldVal = existing;
+    const normalizedShareType = payload.organizerShareType
+        ? payload.organizerShareType.toUpperCase() as 'PERCENTAGE' | 'FIXED'
+        : undefined;
+    const rawShareValue = payload.organizerShareValue !== undefined && payload.organizerShareValue !== null
+        ? Number(payload.organizerShareValue)
+        : undefined;
+    const normalizedShareValue = rawShareValue !== undefined
+        ? ((normalizedShareType || existing.organizerShareType) === 'PERCENTAGE'
+            ? Math.min(100, Math.max(0, rawShareValue))
+            : Math.max(0, rawShareValue))
+        : undefined;
+
+    const nextEventId = payload.eventId !== undefined ? payload.eventId : existing.eventId;
+    const nextShareValue = normalizedShareValue !== undefined
+        ? normalizedShareValue
+        : Number(existing.organizerShareValue || 0);
+    if (nextEventId && nextShareValue <= 0) {
+        throw new Error('Nilai pembagian penyelenggara wajib diisi untuk item event.');
+    }
 
     await db.update(products).set({
         name: payload.name ?? existing.name,
         price: payload.price !== undefined ? payload.price.toString() : existing.price,
+        organizerShareType: payload.eventId !== undefined
+            ? (payload.eventId ? (normalizedShareType || existing.organizerShareType || 'FIXED') : null)
+            : (normalizedShareType !== undefined ? normalizedShareType : existing.organizerShareType),
+        organizerShareValue: payload.eventId !== undefined
+            ? (payload.eventId
+                ? (normalizedShareValue !== undefined
+                    ? (normalizedShareValue > 0 ? normalizedShareValue.toString() : null)
+                    : null)
+                : null)
+            : (normalizedShareValue !== undefined
+                ? (normalizedShareValue > 0 ? normalizedShareValue.toString() : null)
+                : existing.organizerShareValue),
         costPrice: payload.costPrice !== undefined ? payload.costPrice.toString() : existing.costPrice,
         sku: payload.sku ?? existing.sku,
         categoryId: payload.categoryId ?? existing.categoryId,
@@ -148,7 +214,7 @@ export async function adjustStock({ productId, change, type, reason, reference }
 }
 
 export async function getStockAdjustments({ productId, limit = 100, from, to }: { productId?: number; limit?: number; from?: Date; to?: Date } = {}) {
-    await requireAdmin();
+    await requireStudioAdmin();
 
     return await db.query.stockAdjustments.findMany({
         where: (sa, { and: andOp, eq: eqOp, gte: gteOp, lt: ltOp }) => {
@@ -165,7 +231,7 @@ export async function getStockAdjustments({ productId, limit = 100, from, to }: 
 }
 
 export async function getMenuItems() {
-    await requireAdmin();
+    await requireStudioAdmin();
 
     try {
         return await db.query.products.findMany({
@@ -188,7 +254,7 @@ export async function getMenuItems() {
 }
 
 export async function getProducts({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
-    await requireAdmin();
+    await requireStudioAdmin();
 
     return await db.query.products.findMany({
         where: (p, { and: andOp, eq: eqOp }) => {
@@ -209,7 +275,7 @@ export async function getProducts({ isMenuItem, includeArchived = false }: { isM
 export async function getProductsPublic({ isMenuItem, includeArchived = false }: { isMenuItem?: boolean; includeArchived?: boolean } = {}) {
     const session = await verifySession();
     const userEventId = await getCurrentUserEventId();
-    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const canOverrideEvent = session.role === 'SUPERADMIN' || (session.role === 'ADMIN' && !userEventId);
 
     return await db.query.products.findMany({
         where: (p, { and: andOp, eq: eqOp, isNull: isNullFn }) => {
@@ -236,13 +302,13 @@ export async function getProductsPublic({ isMenuItem, includeArchived = false }:
 }
 
 export async function getCategories() {
-    await requireAdmin();
+    await requireStudioAdmin();
     return await db.query.categories.findMany();
 }
 
 // Functions to add/remove menu items
 export async function toggleMenuItem(productId: number, isMenuItem: boolean) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, productId) });
     if (!existing) throw new Error('Product not found');
@@ -319,7 +385,7 @@ export async function addStockAdjustment({ productId, change, type, reason, refe
 
 // Archive / unarchive a product (soft-delete)
 export async function archiveProduct(productId: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, productId) });
     if (!existing) throw new Error('Product not found');
 
@@ -338,7 +404,7 @@ export async function archiveProduct(productId: number) {
 }
 
 export async function unarchiveProduct(productId: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, productId) });
     if (!existing) throw new Error('Product not found');
 
@@ -358,7 +424,7 @@ export async function unarchiveProduct(productId: number) {
 
 // Function to delete a product
 export async function deleteProduct(productId: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.products.findFirst({ where: (p, { eq }) => eq(p.id, productId) });
     if (!existing) throw new Error('Product not found');

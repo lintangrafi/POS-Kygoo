@@ -5,8 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { PaymentBadge } from '@/components/ui/payment-badge';
+import { verifySession } from '@/lib/auth';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export default async function InvoiceDetail({ params }: { params: { id: string } }) {
+    const session = await verifySession();
+    const userEventId = await getCurrentUserEventId();
+    if (session.role === 'CASHIER' || (session.role === 'ADMIN' && userEventId)) {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
+
     const p = await params;
     const id = Number(p.id);
     if (Number.isNaN(id) || !Number.isFinite(id)) {
@@ -43,6 +51,15 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
     } else {
         openBill = await getOpenBillByOrderId(order.id, { bypassUserEventScope: true });
     }
+
+    const paymentBreakdown = (order.payments || []).reduce((acc: Record<string, number>, p: any) => {
+        const method = String(p.method || 'OTHER').toUpperCase();
+        acc[method] = (acc[method] || 0) + Number(p.amount || 0);
+        return acc;
+    }, {});
+    const paidTotal = Object.values(paymentBreakdown)
+        .map((value) => Number(value || 0))
+        .reduce((sum, value) => sum + value, 0);
 
     return (
         <div className="w-full space-y-6 p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
@@ -175,6 +192,25 @@ export default async function InvoiceDetail({ params }: { params: { id: string }
                     </CardHeader>
                     <CardContent className="pt-6">
                         <div className="space-y-3">
+                            <div className="rounded-lg border border-[#E6DED0] bg-[#FFFDF9] p-4">
+                                <div className="mb-3 text-sm font-semibold text-[#1F1D1A]">Breakdown Per Metode</div>
+                                <div className="space-y-2">
+                                    {Object.entries(paymentBreakdown).map(([method, amount]) => (
+                                        <div key={method} className="flex items-center justify-between rounded-md bg-[#F8F3EA] px-3 py-2">
+                                            <div className="flex items-center gap-3">
+                                                <PaymentBadge method={method} className="px-3 py-1" />
+                                                <span className="text-xs text-muted-foreground">{method}</span>
+                                            </div>
+                                            <span className="font-semibold">{formatRupiah(Number(amount))}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-3 flex items-center justify-between border-t border-[#E6DED0] pt-3">
+                                    <span className="text-sm font-semibold">Total Dibayar</span>
+                                    <span className="text-lg font-bold text-[#17663A]">{formatRupiah(paidTotal)}</span>
+                                </div>
+                            </div>
+
                             {order.payments.map((p: any, idx: number) => (
                                 <div key={idx} className="flex items-center justify-between rounded-lg border border-[#E6DED0] bg-[#FFFDF9] p-4">
                                     <div className="flex items-center gap-4">

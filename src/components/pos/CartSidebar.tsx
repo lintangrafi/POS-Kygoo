@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Label } from '@/components/ui/label';
 import { formatRupiah, cn } from '@/lib/utils';
-import { calculateRevenueShare } from '@/lib/revenue-utils';
+import { computeOrganizerSharePerUnit } from '@/lib/item-share-utils';
 import { Minus, Plus, Trash2, CreditCard, Banknote, QrCode } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { SmartNumpad } from './SmartNumpad';
@@ -38,11 +38,6 @@ type EventOption = {
     name: string;
     startDate: Date;
     endDate: Date;
-    revenueShareType?: string | null;
-    organizerSharePercent?: number | null;
-    studioSharePercent?: number | null;
-    organizerShareFixed?: number | null;
-    studioShareFixed?: number | null;
 };
 
 interface CartSidebarProps {
@@ -133,15 +128,18 @@ export function CartSidebar({
     const paidSoFar = activeOpenBill?.paidAmount || 0;
     const remainingDue = Math.max(0, totalAfterDiscount - paidSoFar);
     const selectedEvent = eventOptions.find((event) => event.id === selectedEventId) || null;
-    const revenueShare = selectedEvent
-        ? calculateRevenueShare(remainingDue, {
-            revenueShareType: selectedEvent.revenueShareType,
-            organizerSharePercent: selectedEvent.organizerSharePercent,
-            studioSharePercent: selectedEvent.studioSharePercent,
-            organizerShareFixed: selectedEvent.organizerShareFixed,
-            studioShareFixed: selectedEvent.studioShareFixed,
-        })
-        : null;
+    const grossOrganizerShare = cart.reduce((sum, item) => {
+        const unitPrice = Number(item.price || 0);
+        const organizerUnit = computeOrganizerSharePerUnit({
+            unitPrice,
+            organizerShareType: (item as any).organizerShareType,
+            organizerShareValue: (item as any).organizerShareValue,
+        });
+        return sum + (organizerUnit * item.quantity);
+    }, 0);
+    const discountFactor = subtotal > 0 ? (totalAfterDiscount / subtotal) : 1;
+    const organizerShare = Math.round((grossOrganizerShare * discountFactor) * 100) / 100;
+    const studioShare = Math.max(0, Math.round((totalAfterDiscount - organizerShare) * 100) / 100);
 
     // Reset amounts when modal opens or total changes
     useEffect(() => {
@@ -1163,29 +1161,23 @@ export function CartSidebar({
                                             <span className="text-xs text-[#6B645C]">Event: {selectedEvent.name}</span>
                                         )}
                                     </div>
-                                    {selectedEvent && revenueShare ? (
+                                    {cart.length > 0 ? (
                                         <div className="mt-2 space-y-2 text-sm">
                                             <div className="flex justify-between">
                                                 <span className="text-[#6B645C]">Penyelenggara</span>
                                                 <span className="font-semibold text-[#1F1D1A]">
-                                                    {formatRupiah(revenueShare.organizerShare)}
+                                                    {formatRupiah(organizerShare)}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-[#6B645C]">Studio</span>
                                                 <span className="font-semibold text-[#1F1D1A]">
-                                                    {formatRupiah(revenueShare.studioShare)}
+                                                    {formatRupiah(studioShare)}
                                                 </span>
                                             </div>
-                                            {revenueShare.type === 'PERCENTAGE' ? (
-                                                <div className="text-xs text-muted-foreground">
-                                                    {revenueShare.organizerPercent}% / {revenueShare.studioPercent}% dari {formatRupiah(remainingDue)}
-                                                </div>
-                                            ) : (
-                                                <div className="text-xs text-muted-foreground">
-                                                    Nominal tetap dari {formatRupiah(remainingDue)}
-                                                </div>
-                                            )}
+                                            <div className="text-xs text-muted-foreground">
+                                                Perhitungan berbasis pembagian per item dari inventory.
+                                            </div>
                                         </div>
                                     ) : (
                                         <div className="mt-2 text-xs text-muted-foreground">

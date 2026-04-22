@@ -12,12 +12,16 @@ import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { verifySession } from '@/lib/auth';
-import { calculateRevenueShare } from '@/lib/revenue-utils';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`
     const sp = await (searchParams as any);
     const session = await verifySession();
+    const userEventId = await getCurrentUserEventId();
+    if (session.role === 'ADMIN' && userEventId) {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
 
     // period: 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' (default today)
     const period = (sp?.period as 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom') || 'today';
@@ -131,40 +135,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     const selectedEventForShare = selectedEventId
         ? eventOptions.find((event) => event.id === selectedEventId)
         : null;
-    const reportRevenueShare = r.revenueShare || (
-        selectedEventForShare
-            ? (selectedEventForShare.revenueShareType === 'FIXED'
-                ? (() => {
-                    const organizerFixed = Number(selectedEventForShare.organizerShareFixed || 0);
-                    let organizerShare = 0;
-                    let studioShare = 0;
-
-                    for (const order of r.orders || []) {
-                        for (const item of order.items || []) {
-                            const unitPrice = Number(item.priceAtSale || 0);
-                            const qty = Number(item.quantity || 0);
-                            const organizerTake = Math.min(organizerFixed, unitPrice);
-                            organizerShare += organizerTake * qty;
-                            studioShare += Math.max(0, unitPrice - organizerTake) * qty;
-                        }
-                    }
-
-                    return {
-                        total: r.turnover,
-                        organizerShare: Math.round(organizerShare * 100) / 100,
-                        studioShare: Math.round(studioShare * 100) / 100,
-                        type: 'FIXED' as const,
-                    };
-                })()
-                : calculateRevenueShare(r.turnover, {
-                    revenueShareType: selectedEventForShare.revenueShareType,
-                    organizerSharePercent: selectedEventForShare.organizerSharePercent,
-                    studioSharePercent: selectedEventForShare.studioSharePercent,
-                    organizerShareFixed: selectedEventForShare.organizerShareFixed,
-                    studioShareFixed: selectedEventForShare.studioShareFixed,
-                }))
-            : null
-    );
+    const reportRevenueShare = r.revenueShare;
 
     // fetch daily cashflow detailed breakdown
     const dailyCashflow = await getDailyCashflow({
@@ -386,16 +357,14 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </div>
 
             {/* Revenue Sharing Display */}
-            {reportRevenueShare && (r.event || selectedEventForShare) && (
+            {reportRevenueShare && (
                 <Card className="border-[#E6DED0] bg-[#FFF8F0]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             💰 Pembagian Hasil - {(r.event?.name || selectedEventForShare?.name) ?? 'Event'}
                         </CardTitle>
                         <CardDescription>
-                            {reportRevenueShare.type === 'PERCENTAGE' 
-                                ? `Persentase: Penyelenggara ${reportRevenueShare.organizerPercent}% | Studio ${reportRevenueShare.studioPercent}%`
-                                : 'Nominal Tetap'}
+                            Pembagian berdasarkan konfigurasi per item di inventory.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -485,7 +454,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                             <CardDescription>Pembagian pembayaran untuk periode terpilih.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            {reportRevenueShare && (r.event || selectedEventForShare) ? (
+                            {reportRevenueShare ? (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                     <div className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] p-3">
                                         <div className="text-xs text-[#6F6659]">Total Revenue</div>

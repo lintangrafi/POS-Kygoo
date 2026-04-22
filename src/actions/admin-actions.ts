@@ -5,9 +5,10 @@ import { orders, products, auditLogs, orderItems, payments, users } from '@/db/s
 import { desc, sql, eq, and, gte, lt, lte } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
+import { requireStudioAdmin } from '@/lib/access-control';
 
 export async function getDashboardStats() {
-    const session = await verifySession();
+    await requireStudioAdmin();
     
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
@@ -84,7 +85,7 @@ export async function getDashboardStats() {
 }
 
 export async function getInventory() {
-    await verifySession();
+    await requireStudioAdmin();
     return await db.query.products.findMany({
         orderBy: [desc(products.id)],
         with: {
@@ -95,7 +96,7 @@ export async function getInventory() {
 
 export async function getAuditLogs({ from, to, limit = 50 }: { from?: Date; to?: Date; limit?: number } = {}) {
     // Ideally pagination here
-    await verifySession();
+    await requireStudioAdmin();
 
     return await db.query.auditLogs.findMany({
         where: (al, { and: andOp, gte: gteOp, lt: ltOp }) => {
@@ -115,10 +116,7 @@ export async function getAuditLogs({ from, to, limit = 50 }: { from?: Date; to?:
 
 // --- Invoices / Orders management (admin only)
 export async function getUsers() {
-    const session = await verifySession();
-    if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Not authorized');
-    }
+    await requireStudioAdmin();
     return await db.query.users.findMany({
         orderBy: [desc(users.id)],
         columns: { id: true, name: true, email: true, role: true, createdAt: true },
@@ -147,7 +145,7 @@ export async function getOrders({
     eventId?: number;
     bypassUserEventScope?: boolean;
 } = {}) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
 
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
@@ -215,7 +213,7 @@ export async function getOrders({
 }
 
 export async function getOrderById(id: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
     if (typeof id !== 'number' || Number.isNaN(id)) {
         console.warn('[getOrderById] invalid id', { id });
         return null;
@@ -275,7 +273,7 @@ export async function getOrderById(id: number) {
 }
 
 export async function voidOrder(id: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
 
     // mark order as VOID
     const existing = await db.query.orders.findFirst({ where: eq(orders.id, id) });
@@ -296,7 +294,7 @@ export async function voidOrder(id: number) {
 }
 
 export async function deleteOrder(id: number) {
-    const session = await requireAdmin();
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.orders.findFirst({ where: eq(orders.id, id) });
     if (!existing) throw new Error('Order not found');

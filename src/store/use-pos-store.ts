@@ -8,6 +8,8 @@ export interface Product {
     stock: number;
     categoryId: number;
     eventId?: number | null;
+    organizerShareType?: 'PERCENTAGE' | 'FIXED' | null;
+    organizerShareValue?: string | null;
 }
 
 export interface CartItem extends Product {

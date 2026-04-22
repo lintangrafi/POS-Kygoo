@@ -24,9 +24,10 @@ import { useState } from 'react';
 
 interface SidebarProps {
     role: 'CASHIER' | 'ADMIN' | 'SUPERADMIN';
+    isEventScopedAdmin?: boolean;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isEventScopedAdmin = false }: SidebarProps) {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -82,7 +83,13 @@ export function Sidebar({ role }: SidebarProps) {
         },
     ];
 
-    const filteredLinks = links.filter((link) => link.roles.includes(role));
+    const filteredLinks = links.filter((link) => {
+        if (!link.roles.includes(role)) return false;
+        if (!isEventScopedAdmin) return true;
+
+        const blockedForEventScopedAdmin = ['/dashboard', '/inventory', '/reports', '/invoices', '/settings'];
+        return !blockedForEventScopedAdmin.includes(link.href);
+    });
 
     const isLinkActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 

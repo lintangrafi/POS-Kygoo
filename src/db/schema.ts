@@ -56,6 +56,8 @@ export const products = pgTable('products', {
     sku: text('sku').unique(),   // Optional or Not Null depending on need, unique for barcode
     name: text('name').notNull(),
     price: decimal('price', { precision: 12, scale: 2 }).notNull(),
+    organizerShareType: text('organizer_share_type'), // PERCENTAGE or FIXED for event items
+    organizerShareValue: decimal('organizer_share_value', { precision: 12, scale: 2 }),
     costPrice: decimal('cost_price', { precision: 12, scale: 2 }).notNull().default('0'), // HPP
     stock: integer('stock').notNull().default(0),
     isMenuItem: boolean('is_menu_item').notNull().default(true), // true -> shown in POS menu; false -> stock-only item
@@ -101,6 +103,7 @@ export const orderItems = pgTable('order_items', {
     productId: integer('product_id').references(() => products.id).notNull(),
     quantity: integer('quantity').notNull(),
     priceAtSale: decimal('price_at_sale', { precision: 12, scale: 2 }).notNull(),
+    organizerShareAtSale: decimal('organizer_share_at_sale', { precision: 12, scale: 2 }).notNull().default('0'), // Snapshot organizer share per unit
     costAtSale: decimal('cost_at_sale', { precision: 12, scale: 2 }).notNull(), // Snapshot of cost
 });
 

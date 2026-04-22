@@ -5,8 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { formatRupiah } from '@/lib/utils';
 import { BadgeDollarSign, ShoppingBag, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
 import { getPaymentMethodFromPayments } from '@/components/ui/payment-badge';
+import { verifySession } from '@/lib/auth';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export default async function DashboardPage() {
+    const session = await verifySession();
+    const userEventId = await getCurrentUserEventId();
+    if (session.role === 'ADMIN' && userEventId) {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
+
     const stats = await getDashboardStats();
     const openShift = await getOpenShift();
 

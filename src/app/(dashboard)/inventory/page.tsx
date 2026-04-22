@@ -20,6 +20,10 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
     }
 
     const userEventId = await getCurrentUserEventId();
+    if (session.role === 'ADMIN' && userEventId) {
+        return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
+    }
+
     let userEvent = null;
     if (userEventId) {
         userEvent = await db.query.events.findFirst({
@@ -63,6 +67,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                         <TableHead>Category</TableHead>
                                         <TableHead>Event</TableHead>
                                         <TableHead>Price</TableHead>
+                                        <TableHead>Pembagian</TableHead>
                                         <TableHead>Stock</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -81,6 +86,17 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
                                                 )}
                                             </TableCell>
                                             <TableCell>{formatRupiah(Number(product.price))}</TableCell>
+                                            <TableCell>
+                                                {product.eventId ? (
+                                                    product.organizerShareType === 'PERCENTAGE' ? (
+                                                        <span className="text-xs text-[#8C4A1D] font-semibold">Penyelenggara {Number(product.organizerShareValue || 0)}%</span>
+                                                    ) : (
+                                                        <span className="text-xs text-[#8C4A1D] font-semibold">Penyelenggara {formatRupiah(Number(product.organizerShareValue || 0))}</span>
+                                                    )
+                                                ) : (
+                                                    <span className="text-xs text-[#6F6659]">Studio 100%</span>
+                                                )}
+                                            </TableCell>
                                             <TableCell>{product.stock}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="border-[#DCCFBF] bg-[#F8F3EA] text-[#5A5348]">

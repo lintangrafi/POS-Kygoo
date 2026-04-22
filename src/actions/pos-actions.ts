@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, gte, lte, lt } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getOpenShift } from './shift-actions';
 import { getCurrentUserEventId } from '@/lib/event-utils';
+import { computeOrganizerSharePerUnit } from '@/lib/item-share-utils';
 
 type PaymentMethod = 'CASH' | 'QRIS' | 'TRANSFER';
 
@@ -38,7 +39,7 @@ export async function getPosData() {
     const session = await verifySession();
     // Get user's event if assigned
     const userEventId = await getCurrentUserEventId();
-    const canOverrideEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
+    const canOverrideEvent = session.role === 'SUPERADMIN' || (session.role === 'ADMIN' && !userEventId);
 
     const allCategories = await db.query.categories.findMany();
     const allProducts = await db.query.products.findMany({
@@ -46,13 +47,14 @@ export async function getPosData() {
             const conditions: any[] = [];
             conditions.push(gt(products.stock, -1000));
             
-            // Event users can see: studio items (eventId NULL) + their own event items
-            // Admin users can see: everything (no eventId filter)
-            if (userEventId && !canOverrideEvent) {
-                conditions.push(or(
-                    isNull(products.eventId),
-                    eq(products.eventId, userEventId)
-                ));
+            // Event-scoped users only see items from their assigned event.
+            // Studio admins can see all items.
+            if (!canOverrideEvent) {
+                if (userEventId) {
+                    conditions.push(eq(products.eventId, userEventId));
+                } else {
+                    conditions.push(isNull(products.eventId));
+                }
             }
             return and(...conditions);
         },
@@ -126,6 +128,11 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                     productId: item.productId,
                     quantity: item.quantity,
                     priceAtSale: item.price.toString(),
+                    organizerShareAtSale: computeOrganizerSharePerUnit({
+                        unitPrice: Number(item.price),
+                        organizerShareType: product.organizerShareType,
+                        organizerShareValue: product.organizerShareValue,
+                    }).toString(),
                     costAtSale: product.costPrice,
                 });
 

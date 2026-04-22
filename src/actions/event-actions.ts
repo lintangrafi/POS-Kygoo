@@ -17,6 +17,7 @@ import {
     users,
 } from '@/db/schema';
 import { verifySession } from '@/lib/auth';
+import { getUserScope } from '@/lib/access-control';
 
 type EventInput = {
     name: string;
@@ -146,7 +147,7 @@ export async function getActiveEvent(onDate?: Date) {
 }
 
 export async function getEventOptions() {
-    await verifySession();
+    const { userEventId, isStudioAdmin } = await getUserScope();
 
     let rows: Array<{
         id: number;
@@ -162,6 +163,7 @@ export async function getEventOptions() {
     try {
         // Return ALL events (both active and inactive) so users can assign transactions to any event, regardless of active status
         rows = await db.query.events.findMany({
+            where: !isStudioAdmin && userEventId ? eq(events.id, userEventId) : undefined,
             orderBy: [desc(events.isActive), desc(events.startDate), desc(events.id)],
             columns: {
                 id: true,

@@ -6,9 +6,10 @@ import { and, gte, lt, desc, eq } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { getCurrentUserEventId } from '@/lib/event-utils';
+import { requireStudioAdmin } from '@/lib/access-control';
 
 export async function getIncomes({ from, to, eventId }: { from?: Date; to?: Date; eventId?: number }) {
-    const session = await verifySession();
+    await requireStudioAdmin();
     
     // Get user's event if assigned, otherwise use passed eventId
     const userEventId = await getCurrentUserEventId();
@@ -51,11 +52,7 @@ export async function addIncome(data: {
     notes?: string;
     eventId?: number | null;
 }) {
-    const session = await verifySession();
-
-    if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can add incomes');
-    }
+    const { session } = await requireStudioAdmin();
 
     // Auto-assign to user's event if not specified
     let finalEventId = data.eventId;
@@ -97,11 +94,7 @@ export async function updateIncome(id: number, data: {
     notes?: string;
     eventId?: number | null;
 }) {
-    const session = await verifySession();
-
-    if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can update incomes');
-    }
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.incomes.findFirst({
         where: eq(incomes.id, id),
@@ -140,11 +133,7 @@ export async function updateIncome(id: number, data: {
 }
 
 export async function deleteIncome(id: number) {
-    const session = await verifySession();
-
-    if (session.role !== 'ADMIN' && session.role !== 'SUPERADMIN') {
-        throw new Error('Only admins can delete incomes');
-    }
+    const { session } = await requireStudioAdmin();
 
     const existing = await db.query.incomes.findFirst({
         where: eq(incomes.id, id),

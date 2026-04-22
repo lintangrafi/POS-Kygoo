@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { formatRupiah, cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { PaymentBadge } from '@/components/ui/payment-badge';
 
 type InvoiceOrder = {
     id: number;
@@ -299,7 +300,10 @@ export default function InvoiceMasterDetailClient({
                     </div>
                     {Object.entries(paymentSummary).map(([method, amount]) => (
                         <div key={method} className="flex justify-between rounded-md bg-[#F8F3EA] px-3 py-2">
-                            <span>{method}</span>
+                            <div className="flex items-center gap-2">
+                                <PaymentBadge method={method} className="px-2 py-0.5 text-[10px]" />
+                                <span>{method}</span>
+                            </div>
                             <span>{formatRupiah(Number(amount))}</span>
                         </div>
                     ))}

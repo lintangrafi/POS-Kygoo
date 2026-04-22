@@ -4,12 +4,14 @@ import InvoiceMasterDetailClient from './InvoiceMasterDetailClient';
 import { getOpenBillsByRange } from '@/actions/pos-actions';
 import { verifySession } from '@/lib/auth';
 import { getEventOptions } from '@/actions/event-actions';
+import { getCurrentUserEventId } from '@/lib/event-utils';
 
 export default async function InvoicesPage({ searchParams }: { searchParams?: { period?: string; from?: string; to?: string; day?: string; week?: string; type?: string; eventId?: string } }) {
     // searchParams may be a Promise in Next.js app router — await it first
     const sp = (await searchParams) || {};
     const session = await verifySession();
-    if (session.role === 'CASHIER') {
+    const userEventId = await getCurrentUserEventId();
+    if (session.role === 'CASHIER' || (session.role === 'ADMIN' && userEventId)) {
         return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
     }
 

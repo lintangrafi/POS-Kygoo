@@ -5,7 +5,8 @@ import { orders, orderItems, payments, products, shifts, expenses, incomes, even
 import { and, gte, lt, eq, desc } from 'drizzle-orm';
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
-import { calculateRevenueShare } from '@/lib/revenue-utils';
+import { computeOrganizerSharePerUnit } from '@/lib/item-share-utils';
+import { requireStudioAdmin } from '@/lib/access-control';
 
 const ORDER_BASE_COLUMNS = {
     id: true,
@@ -52,6 +53,7 @@ function formatLocalDateKey(input: Date | string | number): string {
 }
 
 export async function getFinancialReport({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
+    await requireStudioAdmin();
     const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
@@ -173,40 +175,56 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
         incomesByMethod[i.paymentMethod] = (incomesByMethod[i.paymentMethod] || 0) + Number(i.amount);
     }
 
-    // Calculate revenue sharing if event has configuration
-    let revenueShare: ReturnType<typeof calculateRevenueShare> | null = null;
-    if (eventData) {
-        if (eventData.revenueShareType === 'FIXED') {
-            const organizerFixed = Number(eventData.organizerShareFixed || 0);
-            let organizerShare = 0;
-            let studioShare = 0;
+    // Calculate revenue sharing from per-item share configuration (inventory-based)
+    const allProductIds = Array.from(new Set(
+        ordersInRange.flatMap((o: any) => (o.items || []).map((it: any) => Number(it.productId)))
+    ));
+    const productRows = allProductIds.length > 0
+        ? await db.query.products.findMany({
+            where: (p, { inArray }) => inArray(p.id, allProductIds),
+            columns: {
+                id: true,
+                organizerShareType: true,
+                organizerShareValue: true,
+            },
+        })
+        : [];
+    const productMap = new Map(productRows.map((p) => [p.id, p]));
 
-            for (const o of ordersInRange) {
-                for (const it of o.items || []) {
-                    const unitPrice = Number(it.priceAtSale || 0);
-                    const qty = Number(it.quantity || 0);
-                    const organizerTake = Math.min(organizerFixed, unitPrice);
-                    organizerShare += organizerTake * qty;
-                    studioShare += Math.max(0, unitPrice - organizerTake) * qty;
-                }
-            }
+    let organizerShare = 0;
+    let studioShare = 0;
+    for (const o of ordersInRange) {
+        const orderGross = (o.items || []).reduce((sum: number, it: any) => sum + (Number(it.priceAtSale || 0) * Number(it.quantity || 0)), 0);
+        const orderPaid = (o.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        const discountFactor = orderGross > 0 ? (orderPaid / orderGross) : 1;
 
-            revenueShare = {
-                total: turnover,
-                organizerShare: Math.round(organizerShare * 100) / 100,
-                studioShare: Math.round(studioShare * 100) / 100,
-                type: 'FIXED' as const,
-            };
-        } else {
-            revenueShare = calculateRevenueShare(turnover, {
-                revenueShareType: eventData.revenueShareType,
-                organizerSharePercent: eventData.organizerSharePercent,
-                studioSharePercent: eventData.studioSharePercent,
-                organizerShareFixed: eventData.organizerShareFixed,
-                studioShareFixed: eventData.studioShareFixed,
-            });
+        for (const it of o.items || []) {
+            const unitPrice = Number(it.priceAtSale || 0);
+            const qty = Number(it.quantity || 0);
+
+            const fallbackProduct = productMap.get(Number(it.productId));
+            const organizerUnit = Number(it.organizerShareAtSale || 0) > 0
+                ? Number(it.organizerShareAtSale || 0)
+                : computeOrganizerSharePerUnit({
+                    unitPrice,
+                    organizerShareType: fallbackProduct?.organizerShareType,
+                    organizerShareValue: fallbackProduct?.organizerShareValue,
+                });
+
+            const organizerLine = organizerUnit * qty * discountFactor;
+            const netLine = unitPrice * qty * discountFactor;
+
+            organizerShare += organizerLine;
+            studioShare += Math.max(0, netLine - organizerLine);
         }
     }
+
+    const revenueShare = {
+        total: turnover,
+        organizerShare: Math.round(organizerShare * 100) / 100,
+        studioShare: Math.round(studioShare * 100) / 100,
+        type: 'ITEM_BASED' as const,
+    };
 
     return {
         turnover,
@@ -232,6 +250,7 @@ export async function getFinancialReport({ from, to, eventId }: { from: Date; to
 }
 
 export async function getTopProducts({ from, to, limit = 10, eventId }: { from: Date; to: Date; limit?: number; eventId?: number }) {
+    await requireStudioAdmin();
     const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
@@ -288,6 +307,7 @@ const agg: Record<number, { productName: string; qty: number; revenue: number }>
 }
 
 export async function getAggregatedRevenue({ from, to, period = 'daily', eventId }: { from: Date; to: Date; period?: 'daily' | 'weekly' | 'monthly' | 'yearly'; eventId?: number }) {
+    await requireStudioAdmin();
     const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId
@@ -409,6 +429,7 @@ export async function getAggregatedRevenue({ from, to, period = 'daily', eventId
 
 // Get detailed daily cash flow breakdown with income/expense by payment method
 export async function getDailyCashflow({ from, to, eventId }: { from: Date; to: Date; eventId?: number }) {
+    await requireStudioAdmin();
     const session = await verifySession();
 
     // Get user's event if assigned, otherwise use passed eventId

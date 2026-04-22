@@ -20,6 +20,8 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
         stock: product?.stock ?? 0,
         isMenuItem: product?.isMenuItem ?? true,
         eventId: product?.eventId || null,
+        organizerShareType: product?.organizerShareType || 'FIXED',
+        organizerShareValue: product?.organizerShareValue || '',
     });
     const toast = useToast();
     const router = useRouter();
@@ -63,9 +65,21 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                 stock: 0,
                 isMenuItem: true,
                 eventId: null,
+                organizerShareType: 'FIXED',
+                organizerShareValue: '',
             });
         }
     }, [open, mode]);
+
+    useEffect(() => {
+        if (!form.eventId) {
+            setForm((s: any) => ({
+                ...s,
+                organizerShareType: 'FIXED',
+                organizerShareValue: '',
+            }));
+        }
+    }, [form.eventId]);
 
     function setField(key: string, val: any) {
         setForm((s: any) => ({ ...s, [key]: val }));
@@ -87,7 +101,16 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                 stock: Number(form.stock) || 0,
                 isMenuItem: Boolean(form.isMenuItem),
                 eventId: form.eventId ? Number(form.eventId) : null,
+                organizerShareType: form.eventId ? form.organizerShareType : null,
+                organizerShareValue: form.eventId && form.organizerShareValue !== ''
+                    ? Number(form.organizerShareValue)
+                    : null,
             };
+
+            if (payload.eventId && !payload.organizerShareValue) {
+                toast.toast({ title: 'Nilai pembagian penyelenggara wajib diisi untuk item event', variant: 'destructive' });
+                return;
+            }
 
             const url = mode === 'add' ? '/api/inventory/add-product' : '/api/inventory/update-product';
             const body = mode === 'add' ? payload : { id: product.id, ...payload };
@@ -136,6 +159,38 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                             ))}
                         </select>
                     </div>
+                    {form.eventId && (
+                        <div className="rounded-md border border-[#E6DED0] bg-[#FFF8F0] p-3 space-y-2">
+                            <label className="text-sm font-medium text-[#1F1D1A]">Pembagian Per Item (Penyelenggara)</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Tipe</label>
+                                    <select
+                                        value={form.organizerShareType}
+                                        onChange={(e) => setField('organizerShareType', e.target.value)}
+                                        className="mt-1 block w-full rounded-md border px-3 py-2"
+                                    >
+                                        <option value="FIXED">Nominal Tetap (Rp)</option>
+                                        <option value="PERCENTAGE">Persentase (%)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Nilai</label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={form.organizerShareType === 'PERCENTAGE' ? 100 : undefined}
+                                        step={form.organizerShareType === 'PERCENTAGE' ? '0.01' : '100'}
+                                        value={form.organizerShareValue}
+                                        onChange={(e) => setField('organizerShareValue', e.target.value)}
+                                        placeholder={form.organizerShareType === 'PERCENTAGE' ? 'contoh: 20' : 'contoh: 5000'}
+                                        required={!!form.eventId}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Bagian studio otomatis dari sisa harga item.</p>
+                        </div>
+                    )}
                     <div>
                         <label className="text-sm text-muted-foreground">SKU</label>
                         <Input value={form.sku} onChange={(e) => setField('sku', e.target.value)} />

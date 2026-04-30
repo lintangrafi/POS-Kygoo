@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
 
-export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string } }) {
+export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string; reportType?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`
     const sp = await (searchParams as any);
     const session = await verifySession();
@@ -23,12 +23,15 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
         return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
     }
 
+    // reportType: 'studio' | 'event' (default studio)
+    const reportType = (sp?.reportType as 'studio' | 'event') || 'studio';
+    
     // period: 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom' (default today)
     const period = (sp?.period as 'today' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom') || 'today';
     const selectedDay = sp?.day ? Number(sp.day) : null; // 0=Mon..6=Sun
     const selectedWeek = sp?.week ? Number(sp.week) : null; // 1..5
     const selectedDailyDate = sp?.dailyDate;
-    const selectedEventId = sp?.eventId ? Number(sp.eventId) : null;
+    const selectedEventId = reportType === 'event' && sp?.eventId ? Number(sp.eventId) : null;
 
     // parse date range from query params or default based on period
     const today = new Date();
@@ -190,17 +193,33 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             <div className="flex items-center justify-between rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-[#1F1D1A]">Financial Reports</h1>
-                    <p className="text-sm text-[#6F6659]">Analisis revenue, expense, dan profit untuk keputusan operasional harian.</p>
+                    <p className="text-sm text-[#6F6659]">{reportType === 'studio' ? 'Analisis revenue dan profit studio secara keseluruhan.' : 'Analisis revenue dengan pembagian hasil per event.'}</p>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
+                    {/* Report Type Tabs */}
                     <div className="flex items-center gap-2">
+                        <a 
+                            href={`?period=today&reportType=studio`} 
+                            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${reportType === 'studio' ? 'bg-[#B8860B] border-[#9B6F0A] text-white' : 'bg-white border-[#E6DED0] text-[#6F6659] hover:bg-[#F8F3EA]'}`}
+                        >
+                            🏢 Studio Reports
+                        </a>
+                        <a 
+                            href={`?period=today&reportType=event`} 
+                            className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${reportType === 'event' ? 'bg-[#B8860B] border-[#9B6F0A] text-white' : 'bg-white border-[#E6DED0] text-[#6F6659] hover:bg-[#F8F3EA]'}`}
+                        >
+                            🎪 Event Reports
+                        </a>
+                    </div>
+                    {/* Export and Period buttons */}
+                    <div className="flex flex-wrap items-center gap-2">
                         <a href={`${exportBase}&format=csv`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export CSV</a>
                         <a href={`${exportBase}&format=pdf`} className="rounded-lg border border-[#E6DED0] bg-white px-3 py-1.5 text-sm text-[#6F6659] hover:bg-[#F8F3EA]">Export PDF</a>
-                        <a href={`?period=today${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
-                        <a href={`?period=weekly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
-                        <a href={`?period=monthly${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
+                        <a href={`?period=today&reportType=${reportType}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'today' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Today</a>
+                        <a href={`?period=weekly&reportType=${reportType}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'weekly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Weekly</a>
+                        <a href={`?period=monthly&reportType=${reportType}`} className={`rounded-lg border px-3 py-1.5 text-sm ${period === 'monthly' ? 'bg-[#F8F3EA] border-[#DCCFBF] text-[#1F1D1A]' : 'bg-white border-[#E6DED0] text-[#6F6659]'}`}>Monthly</a>
                     </div>
-                    <EventSelector events={eventOptions} currentEventId={selectedEventId} />
+                    {reportType === 'event' && <EventSelector events={eventOptions} currentEventId={selectedEventId} />}
                 </div>
             </div>
 
@@ -221,21 +240,23 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         />
                     </div>
                 )}
-                <div>
-                    <label className="text-sm text-[#6F6659]">Event</label>
-                    <select
-                        name="eventId"
-                        defaultValue={selectedEventId ? String(selectedEventId) : ''}
-                        className="mt-1 block rounded-md border border-[#DCCFBF] bg-white px-3 py-2"
-                    >
-                        <option value="">All Events</option>
-                        {eventOptions.map((event) => (
-                            <option key={event.id} value={String(event.id)}>
-                                {event.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
+                {reportType === 'event' && (
+                    <div>
+                        <label className="text-sm text-[#6F6659]">Event</label>
+                        <select
+                            name="eventId"
+                            defaultValue={selectedEventId ? String(selectedEventId) : ''}
+                            className="mt-1 block rounded-md border border-[#DCCFBF] bg-white px-3 py-2"
+                        >
+                            <option value="">All Events</option>
+                            {eventOptions.map((event) => (
+                                <option key={event.id} value={String(event.id)}>
+                                    {event.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
                 {period === 'custom' && (
                     <>
                         <div>
@@ -249,6 +270,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     </>
                 )}
                 <input type="hidden" name="period" value={period} />
+                <input type="hidden" name="reportType" value={reportType} />
                 {selectedDay !== null && <input type="hidden" name="day" value={String(selectedDay)} />}
                 {selectedWeek !== null && <input type="hidden" name="week" value={String(selectedWeek)} />}
                 <button type="submit" className="inline-flex items-center rounded-md bg-[#C86B2A] px-4 py-2 text-sm font-medium text-white hover:bg-[#B25E24]">Filter</button>
@@ -278,12 +300,12 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                         const dToday = ranges.today; const dDaily = ranges.daily; const dWeekly = ranges.weekly; const dMonthly = ranges.monthly; const dYearly = ranges.yearly;
                         return (
                             <>
-                                <a title="Show today's report" href={`?period=today&from=${fmt(dToday[0])}&to=${fmt(dToday[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Today</a>
-                                <a title="Show daily report" href={`?period=daily&dailyDate=${fmt(dDaily[0])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
-                                <a title="Show weekly aggregates" href={`?period=weekly&from=${fmt(dWeekly[0])}&to=${fmt(dWeekly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Weekly</a>
-                                <a title="Show monthly aggregates" href={`?period=monthly&from=${fmt(dMonthly[0])}&to=${fmt(dMonthly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Monthly</a>
-                                <a title="Show yearly aggregates" href={`?period=yearly&from=${fmt(dYearly[0])}&to=${fmt(dYearly[1])}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'yearly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Yearly</a>
-                                <a title="Show custom range" href={`?period=custom&from=${fmt(from)}&to=${fmt(to)}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'custom' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Custom range</a>
+                                <a title="Show today's report" href={`?period=today&from=${fmt(dToday[0])}&to=${fmt(dToday[1])}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'today' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Today</a>
+                                <a title="Show daily report" href={`?period=daily&dailyDate=${fmt(dDaily[0])}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'daily' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Daily</a>
+                                <a title="Show weekly aggregates" href={`?period=weekly&from=${fmt(dWeekly[0])}&to=${fmt(dWeekly[1])}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'weekly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Weekly</a>
+                                <a title="Show monthly aggregates" href={`?period=monthly&from=${fmt(dMonthly[0])}&to=${fmt(dMonthly[1])}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'monthly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Monthly</a>
+                                <a title="Show yearly aggregates" href={`?period=yearly&from=${fmt(dYearly[0])}&to=${fmt(dYearly[1])}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'yearly' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Yearly</a>
+                                <a title="Show custom range" href={`?period=custom&from=${fmt(from)}&to=${fmt(to)}&reportType=${reportType}`} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${period === 'custom' ? 'bg-[#C86B2A] text-white border-[#C86B2A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}>Custom range</a>
                             </>
                         );
                     })()
@@ -294,7 +316,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label, idx) => (
                         <a
                             key={label}
-                            href={`?period=daily&day=${idx}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`}
+                            href={`?period=daily&day=${idx}&reportType=${reportType}`}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${selectedDay === idx ? 'bg-[#1F1D1A] text-white border-[#1F1D1A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}
                         >
                             {label}
@@ -308,7 +330,7 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                     {[1, 2, 3, 4, 5].map((week) => (
                         <a
                             key={week}
-                            href={`?period=weekly&week=${week}${selectedEventId ? `&eventId=${selectedEventId}` : ''}`}
+                            href={`?period=weekly&week=${week}&reportType=${reportType}`}
                             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${selectedWeek === week ? 'bg-[#1F1D1A] text-white border-[#1F1D1A]' : 'bg-white border-[#DCCFBF] text-[#5A5348] hover:bg-[#F8F3EA]'} transition`}
                         >
                             Week {week}
@@ -356,8 +378,8 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
                 </Card>
             </div>
 
-            {/* Revenue Sharing Display */}
-            {reportRevenueShare && (
+            {/* Revenue Sharing Display - Only for Event Reports with selected event */}
+            {reportType === 'event' && selectedEventId && reportRevenueShare && (
                 <Card className="border-[#E6DED0] bg-[#FFF8F0]">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -417,65 +439,89 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="border-[#E6DED0] bg-white">
-                    <CardHeader>
-                        <CardTitle>Expense Management</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ExpenseManagement
-                            expenses={expensesList as any}
-                            role={session.role}
-                            eventOptions={eventOptions}
-                            defaultEventId={activeEvent?.id ?? null}
-                        />
-                    </CardContent>
-                </Card>
-                <Card className="border-[#E6DED0] bg-white">
-                    <CardHeader>
-                        <CardTitle>Income Management</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <IncomeManagement
-                            incomes={incomesList as any}
-                            role={session.role}
-                            eventOptions={eventOptions}
-                            defaultEventId={activeEvent?.id ?? null}
-                        />
-                    </CardContent>
-                </Card>
+                {reportType === 'studio' || selectedEventId ? (
+                    <Card className="border-[#E6DED0] bg-white">
+                        <CardHeader>
+                            <CardTitle>Expense Management</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <ExpenseManagement
+                                expenses={expensesList as any}
+                                role={session.role}
+                                eventOptions={eventOptions}
+                                defaultEventId={activeEvent?.id ?? null}
+                            />
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-[#E6DED0] bg-white">
+                        <CardHeader>
+                            <CardTitle>Expense Management</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-sm text-[#6F6659]">Pilih event untuk melihat pengelolaan biaya.</div>
+                        </CardContent>
+                    </Card>
+                )}
+                {reportType === 'studio' || selectedEventId ? (
+                    <Card className="border-[#E6DED0] bg-white">
+                        <CardHeader>
+                            <CardTitle>Income Management</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <IncomeManagement
+                                incomes={incomesList as any}
+                                role={session.role}
+                                eventOptions={eventOptions}
+                                defaultEventId={activeEvent?.id ?? null}
+                            />
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <Card className="border-[#E6DED0] bg-white">
+                        <CardHeader>
+                            <CardTitle>Income Management</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-sm text-[#6F6659]">Pilih event untuk melihat pengelolaan pendapatan.</div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <details className="rounded-xl border border-[#E6DED0] bg-white px-4 py-3">
                 <summary className="cursor-pointer text-sm font-semibold text-[#5A5348]">Advanced reports</summary>
                 <div className="mt-4 space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Revenue Share Breakdown</CardTitle>
-                            <CardDescription>Pembagian pembayaran untuk periode terpilih.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {reportRevenueShare ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                    <div className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] p-3">
-                                        <div className="text-xs text-[#6F6659]">Total Revenue</div>
-                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.total)}</div>
+                    {reportType === 'event' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Revenue Share Breakdown</CardTitle>
+                                <CardDescription>Pembagian pembayaran untuk periode terpilih.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {selectedEventId && reportRevenueShare ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div className="rounded-lg border border-[#E6DED0] bg-[#F8F3EA] p-3">
+                                            <div className="text-xs text-[#6F6659]">Total Revenue</div>
+                                            <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.total)}</div>
+                                        </div>
+                                        <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
+                                            <div className="text-xs text-[#8B6F47]">Penyelenggara</div>
+                                            <div className="text-lg font-semibold text-[#C86B2A]">{formatRupiah(reportRevenueShare.organizerShare)}</div>
+                                        </div>
+                                        <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
+                                            <div className="text-xs text-[#8B5A2B]">Studio</div>
+                                            <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.studioShare)}</div>
+                                        </div>
                                     </div>
-                                    <div className="rounded-lg border border-[#D4A574] bg-[#FEF6EB] p-3">
-                                        <div className="text-xs text-[#8B6F47]">Penyelenggara</div>
-                                        <div className="text-lg font-semibold text-[#C86B2A]">{formatRupiah(reportRevenueShare.organizerShare)}</div>
+                                ) : (
+                                    <div className="text-sm text-muted-foreground">
+                                        Pilih event untuk melihat pembagian pembayaran.
                                     </div>
-                                    <div className="rounded-lg border border-[#C86B2A] bg-[#FFF8F0] p-3">
-                                        <div className="text-xs text-[#8B5A2B]">Studio</div>
-                                        <div className="text-lg font-semibold text-[#1F1D1A]">{formatRupiah(reportRevenueShare.studioShare)}</div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="text-sm text-muted-foreground">
-                                    Pilih event untuk melihat pembagian pembayaran.
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                     <Card>
                         <CardHeader>
                             <CardTitle>Expenses & Income by Payment Method</CardTitle>

@@ -107,8 +107,13 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                     : null,
             };
 
-            if (payload.eventId && !payload.organizerShareValue) {
+            if (payload.eventId && (payload.organizerShareValue === null || payload.organizerShareValue === '')) {
                 toast.toast({ title: 'Nilai pembagian penyelenggara wajib diisi untuk item event', variant: 'destructive' });
+                return;
+            }
+
+            if (!form.stock && form.stock !== 0) {
+                toast.toast({ title: 'Stock wajib diisi', variant: 'destructive' });
                 return;
             }
 
@@ -208,7 +213,7 @@ export default function ProductFormClient({ product, mode = 'add' }: any) {
                     <div className="grid grid-cols-2 gap-2">
                         <div>
                             <label className="text-sm text-muted-foreground">Stock</label>
-                            <Input type="number" value={form.stock} onChange={(e) => setField('stock', e.target.value)} />
+                            <Input type="number" value={form.stock} onChange={(e) => setField('stock', e.target.value)} required />
                         </div>
                         <div>
                             <label className="text-sm text-muted-foreground">Show in POS</label>

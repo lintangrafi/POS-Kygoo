@@ -1,14 +1,12 @@
 import { getMenuItems, getStockAdjustments } from '@/actions/inventory-actions';
 import ProductFormClient from '@/components/inventory/ProductFormClient';
 import StockAdjustClient from '@/components/inventory/StockAdjustClient';
-import ToggleMenuItemButton from '@/components/inventory/ToggleMenuItemButton';
+import InventoryMenuTable from '@/components/inventory/InventoryMenuTable';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { formatRupiah } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
 import { db } from '@/db';
+import { Badge } from '@/components/ui/badge';
 
 export default async function InventoryPage({ searchParams }: { searchParams?: { tab?: string } }) {
     const sp = (await searchParams) || {};
@@ -59,65 +57,7 @@ export default async function InventoryPage({ searchParams }: { searchParams?: {
             <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
                 <Card className="border-[#E6DED0] bg-white">
                     <CardContent className="p-4">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Product</TableHead>
-                                        <TableHead>Category</TableHead>
-                                        <TableHead>Event</TableHead>
-                                        <TableHead>Price</TableHead>
-                                        <TableHead>Pembagian</TableHead>
-                                        <TableHead>Stock</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="text-right">Actions</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {menuItems.map((product: any) => (
-                                        <TableRow key={`menu-item-${product.id}`}>
-                                            <TableCell className="font-medium">{product.name}</TableCell>
-                                            <TableCell>{product.category?.name || '-'}</TableCell>
-                                            <TableCell>
-                                                {product.eventId ? (
-                                                    <Badge className="bg-[#B8860B] text-white">Event</Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="border-[#6F6659] text-[#6F6659]">Studio</Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>{formatRupiah(Number(product.price))}</TableCell>
-                                            <TableCell>
-                                                {product.eventId ? (
-                                                    product.organizerShareType === 'PERCENTAGE' ? (
-                                                        <span className="text-xs text-[#8C4A1D] font-semibold">Penyelenggara {Number(product.organizerShareValue || 0)}%</span>
-                                                    ) : (
-                                                        <span className="text-xs text-[#8C4A1D] font-semibold">Penyelenggara {formatRupiah(Number(product.organizerShareValue || 0))}</span>
-                                                    )
-                                                ) : (
-                                                    <span className="text-xs text-[#6F6659]">Studio 100%</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>{product.stock}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="border-[#DCCFBF] bg-[#F8F3EA] text-[#5A5348]">
-                                                    {product.stock <= 10 ? 'Low' : product.isMenuItem ? 'Menu' : 'Stock'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <div className="inline-flex gap-2">
-                                                    <ProductFormClient product={product} mode="edit" />
-                                                    <ToggleMenuItemButton
-                                                        productId={product.id}
-                                                        currentStatus={product.isMenuItem}
-                                                        productName={product.name}
-                                                    />
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <InventoryMenuTable menuItems={menuItems} />
                     </CardContent>
                 </Card>
 

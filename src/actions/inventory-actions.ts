@@ -57,12 +57,16 @@ export async function addProduct(payload: {
     // If eventId not explicitly provided, use user's event if they are event-scoped
     const finalEventId = payload.eventId !== undefined ? payload.eventId : (userEventId || null);
     const normalizedShareType = (payload.organizerShareType || 'FIXED').toUpperCase() as 'PERCENTAGE' | 'FIXED';
-    const rawShareValue = Number(payload.organizerShareValue || 0);
-    const normalizedShareValue = normalizedShareType === 'PERCENTAGE'
-        ? Math.min(100, Math.max(0, rawShareValue))
-        : Math.max(0, rawShareValue);
+    const rawShareValue = payload.organizerShareValue !== null && payload.organizerShareValue !== undefined && payload.organizerShareValue !== ''
+        ? Number(payload.organizerShareValue)
+        : null;
+    const normalizedShareValue = rawShareValue !== null
+        ? (normalizedShareType === 'PERCENTAGE'
+            ? Math.min(100, Math.max(0, rawShareValue))
+            : Math.max(0, rawShareValue))
+        : null;
 
-    if (finalEventId && normalizedShareValue <= 0) {
+    if (finalEventId && normalizedShareValue === null) {
         throw new Error('Nilai pembagian penyelenggara wajib diisi untuk item event.');
     }
 
@@ -73,11 +77,11 @@ export async function addProduct(payload: {
         name: payload.name,
         price: payload.price.toString(),
         organizerShareType: finalEventId ? normalizedShareType : null,
-        organizerShareValue: finalEventId && normalizedShareValue > 0
+        organizerShareValue: finalEventId && normalizedShareValue !== null
             ? normalizedShareValue.toString()
             : null,
         costPrice: (payload.costPrice || 0).toString(),
-        stock: payload.stock || 0,
+        stock: payload.stock !== null && payload.stock !== undefined ? payload.stock : 0,
         isMenuItem: typeof payload.isMenuItem === 'boolean' ? payload.isMenuItem : true,
     }).returning();
 
@@ -125,8 +129,8 @@ export async function updateProduct(id: number, payload: {
     const nextEventId = payload.eventId !== undefined ? payload.eventId : existing.eventId;
     const nextShareValue = normalizedShareValue !== undefined
         ? normalizedShareValue
-        : Number(existing.organizerShareValue || 0);
-    if (nextEventId && nextShareValue <= 0) {
+        : (existing.organizerShareValue !== null ? Number(existing.organizerShareValue) : null);
+    if (nextEventId && nextShareValue === null) {
         throw new Error('Nilai pembagian penyelenggara wajib diisi untuk item event.');
     }
 
@@ -139,11 +143,11 @@ export async function updateProduct(id: number, payload: {
         organizerShareValue: payload.eventId !== undefined
             ? (payload.eventId
                 ? (normalizedShareValue !== undefined
-                    ? (normalizedShareValue > 0 ? normalizedShareValue.toString() : null)
+                    ? (normalizedShareValue !== null ? normalizedShareValue.toString() : null)
                     : null)
                 : null)
             : (normalizedShareValue !== undefined
-                ? (normalizedShareValue > 0 ? normalizedShareValue.toString() : null)
+                ? (normalizedShareValue !== null ? normalizedShareValue.toString() : null)
                 : existing.organizerShareValue),
         costPrice: payload.costPrice !== undefined ? payload.costPrice.toString() : existing.costPrice,
         sku: payload.sku ?? existing.sku,

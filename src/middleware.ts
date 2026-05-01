@@ -2,7 +2,17 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { decrypt } from '@/lib/auth';
 
-const PROTECTED_ROUTES = ['/dashboard', '/pos', '/shift', '/admin'];
+const PROTECTED_ROUTES = [
+    '/dashboard',
+    '/pos',
+    '/shift',
+    '/admin',
+    '/reports',
+    '/inventory',
+    '/events',
+    '/invoices',
+    '/settings',
+];
 const PUBLIC_ROUTES = ['/login', '/'];
 
 export async function middleware(req: NextRequest) {

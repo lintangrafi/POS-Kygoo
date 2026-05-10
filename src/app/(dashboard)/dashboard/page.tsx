@@ -1,6 +1,7 @@
 import { getDashboardStats } from '@/actions/admin-actions';
 import { getOpenShift } from '@/actions/shift-actions';
 import { getExpenses } from '@/actions/expense-actions';
+import { getIncomes } from '@/actions/income-actions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { formatRupiah } from '@/lib/utils';
 import { BadgeDollarSign, ShoppingBag, AlertTriangle, TrendingUp, Wallet } from 'lucide-react';
@@ -20,18 +21,25 @@ export default async function DashboardPage() {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
-    const [stats, openShift, todayExpenses] = await Promise.all([
+    const [stats, openShift, todayExpenses, todayIncomes] = await Promise.all([
         getDashboardStats(),
         getOpenShift(),
         getExpenses({ from: today, to: tomorrow }).catch((error) => {
             console.error('[dashboard] failed to load expenses, fallback to empty list', error);
             return [] as Awaited<ReturnType<typeof getExpenses>>;
         }),
+        getIncomes({ from: today, to: tomorrow }).catch((error) => {
+            console.error('[dashboard] failed to load incomes, fallback to empty list', error);
+            return [] as Awaited<ReturnType<typeof getIncomes>>;
+        }),
     ]);
     const totalExpenses = todayExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+    const totalIncomes = todayIncomes.reduce((sum, inc) => sum + Number(inc.amount), 0);
 
-    // Calculate net profit (revenue - expenses)
-    const netProfit = stats.todaySales - totalExpenses;
+    // Calculate net profit: revenue - expenses + additional incomes
+    // Consistent with report-actions formula: turnover - cogs - expenses + incomes
+    // (COGS not available at dashboard level without fetching order items, so simplified)
+    const netProfit = stats.todaySales - totalExpenses + totalIncomes;
     const profitPercentage = stats.todaySales > 0 ? ((netProfit / stats.todaySales) * 100).toFixed(1) : '0';
 
     return (

@@ -19,7 +19,7 @@ export async function getDashboardStats() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // 1. Total Sales Today
+    // 1. Total Sales Today - use actual payments sum (consistent with financial reports)
     const todayOrders = await db.query.orders.findMany({
         columns: {
             id: true,
@@ -38,9 +38,16 @@ export async function getDashboardStats() {
             eq(orders.status, 'COMPLETED'),
             ...(userEventId ? [eq(orders.eventId, userEventId)] : [])
         ),
+        with: {
+            payments: true,
+        },
     });
 
-    const totalSalesDid = todayOrders.reduce((acc, order) => acc + Number(order.totalAmount), 0);
+    // Use actual payments sum instead of totalAmount to be consistent with report-actions turnover calculation
+    const totalSalesDid = todayOrders.reduce((acc, order) => {
+        const paid = ((order as any).payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        return acc + paid;
+    }, 0);
     const totaltransactions = todayOrders.length;
 
     // 2. Low Stock Items
@@ -275,19 +282,43 @@ export async function getOrderById(id: number) {
 export async function voidOrder(id: number) {
     const { session } = await requireStudioAdmin();
 
-    // mark order as VOID
+    // mark order as VOID and restore stock
     const existing = await db.query.orders.findFirst({ where: eq(orders.id, id) });
     if (!existing) throw new Error('Order not found');
 
-    await db.update(orders).set({ status: 'VOID' }).where(eq(orders.id, id));
+    if (existing.status === 'VOID') {
+        throw new Error('Order is already voided');
+    }
+
+    // Fetch order items to restore stock
+    const items = await db.query.orderItems.findMany({
+        where: eq(orderItems.orderId, id),
+    });
+
+    // Restore stock for each product in a transaction
+    await db.transaction(async (tx) => {
+        await tx.update(orders).set({ status: 'VOID' }).where(eq(orders.id, id));
+
+        // Restore stock for each item
+        for (const item of items) {
+            const product = await tx.query.products.findFirst({
+                where: eq(products.id, item.productId),
+            });
+            if (product) {
+                await tx.update(products)
+                    .set({ stock: product.stock + item.quantity })
+                    .where(eq(products.id, item.productId));
+            }
+        }
+    });
 
     await db.insert(auditLogs).values({
         userId: session.userId,
-        action: 'UPDATE',
+        action: 'VOID',
         entity: 'ORDER',
         entityId: id,
         oldValue: JSON.stringify({ status: existing.status, total: existing.totalAmount }),
-        newValue: JSON.stringify({ status: 'VOID' }),
+        newValue: JSON.stringify({ status: 'VOID', stockRestored: items.map(i => ({ productId: i.productId, qty: i.quantity })) }),
     });
 
     return { success: true };

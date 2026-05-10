@@ -98,6 +98,31 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
         return { error: 'No open shift found.' };
     }
 
+    // Server-side validation: ensure payment amounts cover the total
+    if (!data.paymentMethods || data.paymentMethods.length === 0) {
+        return { error: 'At least one payment method is required.' };
+    }
+
+    const totalPayments = data.paymentMethods.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    if (totalPayments < data.totalAmount) {
+        return { error: `Payment amount (${totalPayments}) is less than total (${data.totalAmount}).` };
+    }
+
+    // Validate no negative or zero amounts
+    for (const p of data.paymentMethods) {
+        if (!p.amount || p.amount <= 0) {
+            return { error: 'Each payment method must have a positive amount.' };
+        }
+        if (!['CASH', 'QRIS', 'TRANSFER'].includes(p.method)) {
+            return { error: `Invalid payment method: ${p.method}` };
+        }
+    }
+
+    // Validate items
+    if (!data.items || data.items.length === 0) {
+        return { error: 'Cart is empty. Cannot process transaction.' };
+    }
+
     // Get user's event if assigned (and not manually overridden)
     const userEventId = await getCurrentUserEventId();
     // Event users are locked to their assigned event.
@@ -168,10 +193,12 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
             }
 
             if (openBillId) {
+                // When closing an open bill, paidAmount should reflect the TOTAL paid
+                // (previous down payment + this final payment = totalAmount)
                 await tx.update(openBills)
                     .set({
                         status: 'CLOSED',
-                        paidAmount: data.totalAmount.toString(),
+                        paidAmount: data.totalAmount.toString(), // Full amount is now settled
                         invoiceStatus: 'CONVERTED',
                         closedAt: new Date(),
                         updatedAt: new Date(),

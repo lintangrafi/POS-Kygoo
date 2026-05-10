@@ -21,9 +21,16 @@ export async function getStockAdjustmentsPublic({ productId, limit = 20, page = 
         return andOp(...conds);
     };
 
-    // total count (simple approach)
-    const all = await db.query.stockAdjustments.findMany({ where: whereFn });
-    const total = all.length;
+    // Use COUNT query instead of fetching all rows just to count them
+    const conditions: any[] = [];
+    if (productId) conditions.push(eq(stockAdjustments.productId, productId));
+    if (from) conditions.push(sql`${stockAdjustments.createdAt} >= ${from}`);
+    if (to) conditions.push(sql`${stockAdjustments.createdAt} < ${to}`);
+
+    const countResult = await db.select({ count: sql<number>`count(*)::int` })
+        .from(stockAdjustments)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+    const total = countResult[0]?.count || 0;
 
     const offset = (Math.max(1, page) - 1) * limit;
     const data = await db.query.stockAdjustments.findMany({

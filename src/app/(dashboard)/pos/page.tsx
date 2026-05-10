@@ -1,20 +1,20 @@
 import { getOpenShift } from '@/actions/shift-actions';
 import { getOpenBills, getPosData } from '@/actions/pos-actions';
-import { getActiveEvent, getEventOptions } from '@/actions/event-actions';
+import { getCachedEventOptions, getCachedActiveEvent } from '@/lib/cache';
 import { ProductGrid } from '@/components/pos/ProductGrid';
 import { CartSidebar } from '@/components/pos/CartSidebar';
 
 export default async function POSPage() {
-    const openShift = await getOpenShift();
-    const isShiftOpen = !!openShift;
-
-    // Fetch initial data
-    const { categories, products } = await getPosData();
-    const initialOpenBills = await getOpenBills();
-    const [eventOptions, activeEvent] = await Promise.all([
-        getEventOptions(),
-        getActiveEvent(),
+    // Parallelize all data fetching
+    const [openShift, { categories, products }, initialOpenBills, eventOptions, activeEvent] = await Promise.all([
+        getOpenShift(),
+        getPosData(),
+        getOpenBills(),
+        getCachedEventOptions(),
+        getCachedActiveEvent(),
     ]);
+
+    const isShiftOpen = !!openShift;
 
     return (
         <div className="h-[calc(100dvh-2rem)] lg:h-[100dvh] space-y-4 rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4">

@@ -45,7 +45,10 @@ export async function getPosData() {
     const allProducts = await db.query.products.findMany({
         where: (products, { gt, eq, isNull, or, and }) => {
             const conditions: any[] = [];
+            // Only show active menu items with stock
             conditions.push(gt(products.stock, -1000));
+            conditions.push(eq(products.isMenuItem, true));
+            conditions.push(eq(products.isArchived, false));
             
             // Event-scoped users only see items from their assigned event.
             // Studio admins can see all items.
@@ -116,37 +119,52 @@ async function createCompletedOrder(data: CheckoutPayload, openBillId?: number) 
                 eventId: orderEventId ?? null,
             }).returning();
 
-            for (const item of data.items) {
-                const product = await tx.query.products.findFirst({
-                    where: eq(products.id, item.productId),
-                });
+            // Batch fetch all products to avoid N+1 queries
+            const productIds = data.items.map(item => item.productId);
+            const allProducts = await tx.query.products.findMany({
+                where: inArray(products.id, productIds),
+            });
+            const productMap = new Map(allProducts.map(p => [p.id, p]));
 
-                if (!product) continue;
-
-                await tx.insert(orderItems).values({
+            // Batch insert order items
+            const orderItemsToInsert = data.items.map(item => {
+                const product = productMap.get(item.productId);
+                return {
                     orderId: newOrder.id,
                     productId: item.productId,
                     quantity: item.quantity,
                     priceAtSale: item.price.toString(),
                     organizerShareAtSale: computeOrganizerSharePerUnit({
                         unitPrice: Number(item.price),
-                        organizerShareType: product.organizerShareType,
-                        organizerShareValue: product.organizerShareValue,
+                        organizerShareType: product?.organizerShareType,
+                        organizerShareValue: product?.organizerShareValue,
                     }).toString(),
-                    costAtSale: product.costPrice,
-                });
+                    costAtSale: product?.costPrice || '0',
+                };
+            });
 
+            if (orderItemsToInsert.length > 0) {
+                await tx.insert(orderItems).values(orderItemsToInsert);
+            }
+
+            // Update stock for each product (must be sequential to handle concurrent access)
+            for (const item of data.items) {
+                const product = productMap.get(item.productId);
+                if (!product) continue;
                 await tx.update(products)
                     .set({ stock: product.stock - item.quantity })
                     .where(eq(products.id, item.productId));
             }
 
-            for (const payment of data.paymentMethods) {
-                await tx.insert(payments).values({
-                    orderId: newOrder.id,
-                    method: payment.method,
-                    amount: payment.amount.toString(),
-                });
+            // Batch insert payments
+            if (data.paymentMethods.length > 0) {
+                await tx.insert(payments).values(
+                    data.paymentMethods.map(payment => ({
+                        orderId: newOrder.id,
+                        method: payment.method,
+                        amount: payment.amount.toString(),
+                    }))
+                );
             }
 
             if (openBillId) {

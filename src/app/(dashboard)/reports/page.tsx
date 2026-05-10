@@ -3,16 +3,23 @@ import { getFinancialReport, getTopProducts, getAggregatedRevenue, getDailyCashf
 import { getExpenses } from '@/actions/expense-actions';
 import { getIncomes } from '@/actions/income-actions';
 import { getActiveEvent, getEventOptions } from '@/actions/event-actions';
-import TrendChart from '@/components/reports/TrendChart';
+import dynamic from 'next/dynamic';
 import BarChart from '@/components/reports/BarChart';
-import { ExpenseManagement } from '@/components/reports/ExpenseManagement';
-import { IncomeManagement } from '@/components/reports/IncomeManagement';
 import { EventSelector } from '@/components/reports/EventSelector';
 import { formatRupiah } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { verifySession } from '@/lib/auth';
 import { getCurrentUserEventId } from '@/lib/event-utils';
+
+// Dynamic imports for heavy client components with Dialog modals
+// These only load when the reports page is actually visited
+const ExpenseManagement = dynamic(() => import('@/components/reports/ExpenseManagement').then(m => ({ default: m.ExpenseManagement })), {
+    loading: () => <div className="h-32 animate-pulse rounded-lg bg-[#F5F1E8]" />,
+});
+const IncomeManagement = dynamic(() => import('@/components/reports/IncomeManagement').then(m => ({ default: m.IncomeManagement })), {
+    loading: () => <div className="h-32 animate-pulse rounded-lg bg-[#F5F1E8]" />,
+});
 
 export default async function ReportsPage({ searchParams }: { searchParams?: { from?: string; to?: string; period?: string; day?: string; week?: string; dailyDate?: string; eventId?: string; reportType?: string } }) {
     // `searchParams` may be a Promise in some Next.js versions, unwrap it to `sp`

@@ -6,43 +6,64 @@ import { Card, CardContent } from '@/components/ui/card';
 import { cn, formatRupiah } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useCallback, memo } from 'react';
 
 interface ProductGridProps {
     categories: any[];
     products: any[];
 }
 
+// Memoized product card to prevent re-renders when other items change
+const ProductCard = memo(function ProductCard({ product, onAdd }: { product: any; onAdd: (p: any) => void }) {
+    return (
+        <Card
+            className={cn(
+                "cursor-pointer border-[#E6DED0] hover:border-[#D39C70] hover:bg-[#FDF8F0] transition-all active:scale-95",
+                product.stock <= 0 && "opacity-50 grayscale"
+            )}
+            onClick={() => product.stock > 0 && onAdd(product)}
+        >
+            <CardContent className="p-3 flex flex-col justify-between min-h-[110px]">
+                <div className="min-h-[38px] text-sm font-semibold leading-snug text-[#201C16] line-clamp-2">
+                    {product.name}
+                </div>
+                <div>
+                    <div className="text-sm font-bold text-[#201C16]">{formatRupiah(Number(product.price))}</div>
+                    <div className={cn(
+                        'text-xs',
+                        product.stock <= 3 ? 'text-[#B6452C] font-medium' : 'text-[#7F7568]'
+                    )}>
+                        Stock: {product.stock}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+});
+
 export function ProductGrid({ categories, products }: ProductGridProps) {
-    const {
-        selectedCategoryId,
-        setSelectedCategoryId,
-        addToCart,
-        searchQuery,
-        setSearchQuery,
-        selectedEventId,
-    } = usePosStore();
+    // Use individual selectors to prevent re-renders from unrelated store changes (e.g. cart updates)
+    const selectedCategoryId = usePosStore((s) => s.selectedCategoryId);
+    const setSelectedCategoryId = usePosStore((s) => s.setSelectedCategoryId);
+    const addToCart = usePosStore((s) => s.addToCart);
+    const searchQuery = usePosStore((s) => s.searchQuery);
+    const setSearchQuery = usePosStore((s) => s.setSearchQuery);
+    const selectedEventId = usePosStore((s) => s.selectedEventId);
+
     const topProduct = products[0];
-    const openBillCount = 0;
 
-    const categoryColorClasses = [
-        {
-            inactive: 'border-[#E6DED0] bg-white text-[#5A5348] hover:bg-[#F8F3EA]',
-            active: 'border-[#C86B2A] bg-[#C86B2A] text-white hover:bg-[#B25E24]',
-        },
-    ];
-
-    const eventScopedProducts = products.filter((p) => {
-        // Studio selection shows studio items only (eventId null).
-        // Event selection shows only items from that event.
-        if (selectedEventId === null) {
-            return p.eventId === null || p.eventId === undefined;
-        }
-        return p.eventId === selectedEventId;
-    });
+    // Memoize event-scoped products - only recalculates when products or selectedEventId changes
+    const eventScopedProducts = useMemo(() => {
+        return products.filter((p) => {
+            if (selectedEventId === null) {
+                return p.eventId === null || p.eventId === undefined;
+            }
+            return p.eventId === selectedEventId;
+        });
+    }, [products, selectedEventId]);
 
     const visibleCategoryIds = useMemo(() => new Set(eventScopedProducts.map((p) => p.categoryId)), [eventScopedProducts]);
-    const visibleCategories = categories.filter((cat) => visibleCategoryIds.has(cat.id));
+    const visibleCategories = useMemo(() => categories.filter((cat) => visibleCategoryIds.has(cat.id)), [categories, visibleCategoryIds]);
 
     useEffect(() => {
         if (selectedCategoryId !== null && !visibleCategoryIds.has(selectedCategoryId)) {
@@ -50,15 +71,20 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
         }
     }, [selectedCategoryId, visibleCategoryIds, setSelectedCategoryId]);
 
-    // Filter Logic
-    const filteredProducts = eventScopedProducts.filter((p) => {
-        const matchCategory = selectedCategoryId ? p.categoryId === selectedCategoryId : true;
-        const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchCategory && matchSearch;
-    });
+    // Memoize filtered products - only recalculates when inputs actually change
+    const filteredProducts = useMemo(() => {
+        const query = searchQuery.toLowerCase();
+        return eventScopedProducts.filter((p) => {
+            const matchCategory = selectedCategoryId ? p.categoryId === selectedCategoryId : true;
+            const matchSearch = !query || p.name.toLowerCase().includes(query);
+            return matchCategory && matchSearch;
+        });
+    }, [eventScopedProducts, selectedCategoryId, searchQuery]);
 
-    // Determine current theme (Studio vs FB) based on category for styling if needed,
-    // but we stick to monochrome mostly.
+    // Memoize addToCart callback so ProductCard doesn't re-render needlessly
+    const handleAddToCart = useCallback((product: any) => {
+        addToCart(product);
+    }, [addToCart]);
 
     return (
         <div className="flex flex-col h-full gap-3 rounded-xl border border-[#E6DED0] bg-white p-3 sm:p-4 shadow-sm">
@@ -87,10 +113,8 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                     >
                         All Items
                     </Button>
-                    {visibleCategories.map((cat, index) => {
-                        const palette = categoryColorClasses[index % categoryColorClasses.length];
+                    {visibleCategories.map((cat) => {
                         const isSelected = selectedCategoryId === cat.id;
-
                         return (
                             <Button
                                 key={cat.id}
@@ -98,7 +122,9 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                                 onClick={() => setSelectedCategoryId(cat.id)}
                                 className={cn(
                                     'h-7 whitespace-nowrap px-2.5 text-xs font-medium transition-colors',
-                                    isSelected ? palette.active : palette.inactive
+                                    isSelected
+                                        ? 'border-[#C86B2A] bg-[#C86B2A] text-white hover:bg-[#B25E24]'
+                                        : 'border-[#E6DED0] bg-white text-[#5A5348] hover:bg-[#F8F3EA]'
                                 )}
                             >
                                 {cat.name}
@@ -111,29 +137,7 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
             {/* Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 overflow-y-auto pr-1 sm:pr-2 pb-6">
                 {filteredProducts.map((product) => (
-                    <Card
-                        key={product.id}
-                        className={cn(
-                            "cursor-pointer border-[#E6DED0] hover:border-[#D39C70] hover:bg-[#FDF8F0] transition-all active:scale-95",
-                            product.stock <= 0 && "opacity-50 grayscale"
-                        )}
-                        onClick={() => product.stock > 0 && addToCart(product)}
-                    >
-                        <CardContent className="p-3 flex flex-col justify-between min-h-[110px]">
-                            <div className="min-h-[38px] text-sm font-semibold leading-snug text-[#201C16] line-clamp-2">
-                                {product.name}
-                            </div>
-                            <div>
-                                <div className="text-sm font-bold text-[#201C16]">{formatRupiah(Number(product.price))}</div>
-                                <div className={cn(
-                                    'text-xs',
-                                    product.stock <= 3 ? 'text-[#B6452C] font-medium' : 'text-[#7F7568]'
-                                )}>
-                                    Stock: {product.stock}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <ProductCard key={product.id} product={product} onAdd={handleAddToCart} />
                 ))}
             </div>
 
@@ -143,8 +147,8 @@ export function ProductGrid({ categories, products }: ProductGridProps) {
                     <p className="text-sm font-semibold text-[#1F1D1A]">{topProduct?.name || '-'}</p>
                 </div>
                 <div className="rounded-lg border border-[#E6DED0] bg-[#FCFAF6] px-3 py-2">
-                    <p className="text-xs text-[#8B7C6B]">Open Bill Aktif</p>
-                    <p className="text-sm font-semibold text-[#1F1D1A]">{openBillCount} meja</p>
+                    <p className="text-xs text-[#8B7C6B]">Total Produk</p>
+                    <p className="text-sm font-semibold text-[#1F1D1A]">{filteredProducts.length} items</p>
                 </div>
             </div>
         </div>

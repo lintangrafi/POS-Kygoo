@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { cache } from 'react';
 
 const KEY = new TextEncoder().encode(process.env.AUTH_SECRET || 'secret-key-generic');
 
@@ -8,6 +9,7 @@ export type SessionPayload = {
     userId: number;
     name: string;
     role: 'CASHIER' | 'ADMIN' | 'SUPERADMIN';
+    eventId?: number | null;
     expires: Date;
 };
 
@@ -30,20 +32,30 @@ export async function decrypt(input: string): Promise<SessionPayload | null> {
     }
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
+/**
+ * getSession is cached per-request using React.cache().
+ * No matter how many server components/actions call it within a single request,
+ * the cookie read + JWT decrypt happens only ONCE.
+ */
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
     const cookieStore = await cookies();
     const session = cookieStore.get('session')?.value;
     if (!session) return null;
     return await decrypt(session);
-}
+});
 
-export async function verifySession() {
+/**
+ * verifySession is cached per-request.
+ * Safe to call from layout, page, and multiple server actions within one request
+ * without redundant JWT decryption.
+ */
+export const verifySession = cache(async () => {
     const session = await getSession();
     if (!session?.userId) {
         redirect('/login');
     }
     return session;
-}
+});
 
 export async function createSession(payload: Omit<SessionPayload, 'expires'>) {
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day

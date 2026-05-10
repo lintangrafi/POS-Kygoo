@@ -1,18 +1,21 @@
 'use server';
 
 import { verifySession } from '@/lib/auth';
-import { db } from '@/db';
-import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { getCurrentUserEventId } from '@/lib/event-utils';
+import { cache } from 'react';
 
-export async function getUserScope() {
+/**
+ * Get the current user's scope (role, eventId, permissions).
+ * Cached per-request — no matter how many actions call this in one request,
+ * the computation only happens once.
+ * 
+ * Uses getCurrentUserEventId (also cached) so there's only ONE DB query
+ * for eventId per request total.
+ */
+export const getUserScope = cache(async () => {
     const session = await verifySession();
-    const user = await db.query.users.findFirst({
-        where: eq(users.id, session.userId),
-        columns: { eventId: true },
-    });
+    const userEventId = await getCurrentUserEventId();
 
-    const userEventId = user?.eventId ?? null;
     const isEventScopedAdmin = session.role === 'ADMIN' && !!userEventId;
     const isStudioAdmin = session.role === 'SUPERADMIN' || (session.role === 'ADMIN' && !userEventId);
 
@@ -22,7 +25,7 @@ export async function getUserScope() {
         isEventScopedAdmin,
         isStudioAdmin,
     };
-}
+});
 
 export async function requireStudioAdmin() {
     const scope = await getUserScope();

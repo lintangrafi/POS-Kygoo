@@ -20,8 +20,6 @@ export async function loginAction(prevState: any, formData: FormData) {
             where: eq(users.email, email),
         });
 
-        // For initial Setup: If no users exist, allow creating Superadmin with specific credentials
-        // ideally handled by seed, but good fallback or manual seed check
         if (!user) {
             return { error: 'Invalid credentials.' };
         }
@@ -31,10 +29,12 @@ export async function loginAction(prevState: any, formData: FormData) {
             return { error: 'Invalid credentials.' };
         }
 
+        // Store eventId in JWT so we don't need a DB query on every page load
         await createSession({
             userId: user.id,
             name: user.name,
             role: user.role,
+            eventId: user.eventId ?? null,
         });
 
     } catch (error) {

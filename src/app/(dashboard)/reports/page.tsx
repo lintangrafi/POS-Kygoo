@@ -106,64 +106,36 @@ export default async function ReportsPage({ searchParams }: { searchParams?: { f
     
     const toInclusive = new Date(to.getTime() + 1000 * 60 * 60 * 24); // convert inclusive end date to exclusive upper bound
 
-    // Always fetch financial report for the selected range so metrics reflect the period
-    const r = await getFinancialReport({
-        from,
-        to: toInclusive,
-        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-    });
+    const effectiveEventId = selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined;
 
-    // fetch audit logs filtered by selected range (limit to 10 for reports)
-    const logs = await getAuditLogs({ from, to: toInclusive, limit: 10 });
-
-    // fetch expenses filtered by selected range
-    const expensesList = await getExpenses({
-        from,
-        to: toInclusive,
-        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-    });
-
-    // fetch incomes filtered by selected range
-    const incomesList = await getIncomes({
-        from,
-        to: toInclusive,
-        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-    });
-
-    const [eventOptions, activeEvent] = await Promise.all([
+    // Parallelize ALL data fetching for massive speed improvement
+    const [r, logs, expensesList, incomesList, eventOptions, activeEvent, dailyCashflow, aggregated, topProducts] = await Promise.all([
+        // Financial report (main metrics)
+        getFinancialReport({ from, to: toInclusive, eventId: effectiveEventId }),
+        // Audit logs (limit to 10 for reports)
+        getAuditLogs({ from, to: toInclusive, limit: 10 }),
+        // Expenses filtered by selected range
+        getExpenses({ from, to: toInclusive, eventId: effectiveEventId }),
+        // Incomes filtered by selected range
+        getIncomes({ from, to: toInclusive, eventId: effectiveEventId }),
+        // Event options for selector
         getEventOptions(),
+        // Active event
         getActiveEvent(),
+        // Daily cashflow detailed breakdown
+        getDailyCashflow({ from, to: toInclusive, eventId: effectiveEventId }),
+        // Aggregated series for charts (conditional)
+        (period !== 'custom' && period !== 'today' && period !== 'weekly')
+            ? getAggregatedRevenue({ from, to: toInclusive, period, eventId: effectiveEventId })
+            : Promise.resolve(null),
+        // Top products
+        getTopProducts({ from, to: toInclusive, limit: 10, eventId: effectiveEventId }),
     ]);
 
     const selectedEventForShare = selectedEventId
         ? eventOptions.find((event) => event.id === selectedEventId)
         : null;
     const reportRevenueShare = r.revenueShare;
-
-    // fetch daily cashflow detailed breakdown
-    const dailyCashflow = await getDailyCashflow({
-        from,
-        to: toInclusive,
-        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-    });
-
-    // aggregated series used for charts when not custom/today (except weekly, which should show daily)
-    let aggregated: { period: string; amount: number; paymentsBreakdown: Record<string, number>; ordersCount: number; cashInDrawer: number; expenses: number }[] | null = null;
-    if (period !== 'custom' && period !== 'today' && period !== 'weekly') {
-        aggregated = await getAggregatedRevenue({
-            from,
-            to: toInclusive,
-            period,
-            eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-        });
-    }
-
-    const topProducts = await getTopProducts({
-        from,
-        to: toInclusive,
-        limit: 10,
-        eventId: selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : undefined,
-    });
 
     const fmtDate = (d: Date) => {
         const year = d.getFullYear();

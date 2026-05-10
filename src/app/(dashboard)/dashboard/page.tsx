@@ -15,20 +15,19 @@ export default async function DashboardPage() {
         return <div className="p-8 text-sm text-[#8B1A1A]">Not authorized</div>;
     }
 
-    const stats = await getDashboardStats();
-    const openShift = await getOpenShift();
-
-    // Get today's expenses
+    // Parallelize all data fetching
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    let todayExpenses: Awaited<ReturnType<typeof getExpenses>> = [];
-    try {
-        todayExpenses = await getExpenses({ from: today, to: tomorrow });
-    } catch (error) {
-        console.error('[dashboard] failed to load expenses, fallback to empty list', error);
-        todayExpenses = [];
-    }
+
+    const [stats, openShift, todayExpenses] = await Promise.all([
+        getDashboardStats(),
+        getOpenShift(),
+        getExpenses({ from: today, to: tomorrow }).catch((error) => {
+            console.error('[dashboard] failed to load expenses, fallback to empty list', error);
+            return [] as Awaited<ReturnType<typeof getExpenses>>;
+        }),
+    ]);
     const totalExpenses = todayExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
 
     // Calculate net profit (revenue - expenses)

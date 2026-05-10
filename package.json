@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
-    "build": "npm run db:push && npm run db:seed && next build",
+    "build": "next build",
+    "db:migrate:prod": "drizzle-kit push && node scripts/seed-user.js",
     "start": "next start",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",

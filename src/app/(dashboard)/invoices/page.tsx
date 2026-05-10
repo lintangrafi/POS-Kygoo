@@ -75,22 +75,26 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
     }
 
     const canChooseEvent = session.role === 'ADMIN' || session.role === 'SUPERADMIN';
-    const eventOptions = canChooseEvent ? await getEventOptions() : [];
     const effectiveEventId = selectedEventId && Number.isFinite(selectedEventId) ? selectedEventId : null;
 
-    const orders = await getOrders({
-        limit: 500,
-        from: fromDate,
-        to: toDate,
-        eventId: effectiveEventId || undefined,
-        bypassUserEventScope: true,
-    });
-    const openBillsInRange = await getOpenBillsByRange({
-        from: fromDate,
-        to: toDate,
-        eventId: effectiveEventId || undefined,
-        bypassUserEventScope: true,
-    });
+    // Parallelize all data fetching
+    const [eventOptions, orders, openBillsInRange, draftInvoices] = await Promise.all([
+        canChooseEvent ? getEventOptions() : Promise.resolve([]),
+        getOrders({
+            limit: 100, // Reduced from 500 for better performance
+            from: fromDate,
+            to: toDate,
+            eventId: effectiveEventId || undefined,
+            bypassUserEventScope: true,
+        }),
+        getOpenBillsByRange({
+            from: fromDate,
+            to: toDate,
+            eventId: effectiveEventId || undefined,
+            bypassUserEventScope: true,
+        }),
+        getDraftInvoices({ from: fromDate, to: toDate }),
+    ]);
     const openBillsByInvoice = openBillsInRange.reduce((acc: Record<string, any>, bill) => {
         acc[bill.invoiceNumber] = bill;
         return acc;
@@ -100,7 +104,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams?: { 
         : orders.filter((order) => (selectedType === 'OB'
             ? order.invoiceNumber.startsWith('OB-')
             : order.invoiceNumber.startsWith('INV-')));
-    const draftInvoices = await getDraftInvoices({ from: fromDate, to: toDate });
 
     return (
         <div className="rounded-2xl border border-[#E6DED0] bg-[#F5F1E8] p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6">

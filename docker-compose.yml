@@ -1,0 +1,30 @@
+services:
+  pos-kygoo:
+    image: ghcr.io/lintangrafi/pos-kygoo:latest
+    container_name: pos-kygoo
+    restart: unless-stopped
+    networks:
+      - kygoo-prod
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  kygoo-prod:
+    external: true

@@ -1,0 +1,89 @@
+name: Deploy POS Kygoo to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: lintangrafi/pos-kygoo
+  DOMAIN: pos-kygoo.kygoo.digital
+  PORT: "3000"
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Kygoo Watcher
+    needs: build-and-push
+    runs-on: [self-hosted, kygoo-watcher]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository (for env file)
+        uses: actions/checkout@v4
+
+      - name: Create .env from secrets
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+          echo "AUTH_SECRET=*** >> .env
+          echo "AUTH_URL=*** >> .env
+          echo "NEXT_PUBLIC_APP_URL=https://${{ env.DOMAIN }}" >> .env
+
+      - name: Deploy with Kygoo deploy script
+        run: |
+          /opt/deploy/scripts/deploy.sh \
+            "pos-kygoo" \
+            "https://github.com/${{ github.repository }}" \
+            "main" \
+            "ghcr.io/${{ env.IMAGE_NAME }}:latest" \
+            "${{ env.DOMAIN }}" \
+            "${{ env.PORT }}" \
+            ".env"
+
+      - name: Verify deployment
+        run: |
+          sleep 10
+          echo "=== Container Status ==="
+          docker ps --filter "name=pos-kygoo" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          echo ""
+          echo "=== Health Check ==="
+          curl -s -o /dev/null -w "HTTP %{http_code}" http://localhost:3000/api/health 2>/dev/null || echo "Health endpoint not ready yet"
+          echo ""
+          echo "✅ Deployment complete!"

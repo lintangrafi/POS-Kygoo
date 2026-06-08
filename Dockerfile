@@ -1,7 +1,8 @@
 # =====================================================
 # Dockerfile - POS Kygoo (Next.js Standalone)
-# Multi-stage build: dev deps → build → production
-# NOTE: Uses node:20-slim (NOT alpine) for Tailwind CSS v4 native bindings
+# Multi-stage build: dev deps -> build -> production
+# NOTE: Uses node:20-slim (glibc-based) for Tailwind CSS v4 native bindings.
+# npm ci uses --include=optional to install @tailwindcss/oxide native binary.
 # =====================================================
 
 # Stage 1: Install dependencies & build
@@ -14,8 +15,8 @@ RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends     pyt
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install ALL dependencies (including devDeps for build)
-RUN npm ci
+# Install ALL dependencies including optional (for native binaries like @tailwindcss/oxide)
+RUN npm ci --include=optional
 
 # Copy source code
 COPY . .
